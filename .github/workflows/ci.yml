@@ -1,0 +1,13 @@
+name: macOS checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - run: ./script/test.sh
+      - run: ./script/package_app.sh release
+      - run: ./script/package_touchbar.sh
+      - run: python3 script/verify_package.py dist/AIUsageBar.app

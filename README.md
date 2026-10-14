@@ -1,0 +1,90 @@
+# AI Usage Bar (working name)
+
+A native macOS menu-bar utility for coding-provider quota, per-chat context, and CPU/RAM monitoring. Touch Bar support is a separate optional BetterTouchTool add-on. The final name is undecided.
+
+## Build and run
+
+Requires macOS 13+ and a Swift 6 toolchain. No third-party Swift dependencies.
+
+```sh
+./script/test.sh
+./script/build_and_run.sh
+```
+
+For a safe UI preview without credential reads, local session scans, or provider network calls:
+
+```sh
+./script/build_and_run.sh --verify --demo --preview
+```
+
+On Command Line Tools-only Macs, `script/test.sh` executes the same authored cases through a portable runner because the bundled Swift Testing runtime can be incomplete. Full Xcode installations use `swift test`.
+
+The app is intentionally menu-bar-only (no Dock icon). Click the chart icon to open the popover. Settings are available from its gear button. The packaged app is `dist/AIUsageBar.app`; its small CLI is `Contents/Helpers/usagebar`. The Codex Run action uses the same build/run script.
+
+## Current implementation
+
+| Feature | Status |
+| --- | --- |
+| Native menu-bar UI and settings | Implemented; live-provider connections start disabled |
+| CPU/RAM and memory-pressure sampling | Implemented with slower background/Low Power sampling |
+| Codex quota | Experimental CLI OAuth adapter; fixtures tested; live account validation pending |
+| Gemini CLI quota | Experimental OAuth adapter, model buckets and unsupported-tier state; live validation pending |
+| Claude quota | Experimental `.credentials.json` OAuth adapter; Keychain-only sign-in not supported yet |
+| Local Codex context | Opt-in, bounded recent rollout metadata; last-turn estimate, not an exact live working-set measurement |
+| Desktop/CLI native compaction | Opt-in existing local WebSocket app-server connection; exact ID/revision and idle checks; completion event required |
+| Touch Bar | Separate BTT preset and CLI bridge; physical hardware/import validation pending |
+
+Session discovery is limited to recent local Codex rollout files. Client labels are preserved from source metadata; an unknown source is not guessed to be the desktop app. A new connection may not receive another client's token events. Local metadata does not enable compaction. The app never resumes a chat in another server to obtain state.
+
+## Connect a provider
+
+Enable the provider in Settings only after reviewing its credential path. This reads your existing CLI OAuth token and calls only that provider's fixed usage endpoints. Providers are independent; disabling one cancels its refresh and clears its visible/cache state. Tokens are not stored in the app's settings, snapshots, CLI output or logs. Expired tokens must be renewed by their owning CLI; the app does not overwrite shared credential files.
+
+Subscription quota, per-chat context and API spending are different. This release tracks subscription quota and context estimates; it does not claim to track API billing.
+
+Google currently has conflicting documentation about consumer Gemini CLI Google-login access. The adapter reports unsupported/missing quota honestly. Check your actual tier and CLI version; no Antigravity data is silently relabeled as Gemini CLI quota. See [Google's notice](https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals).
+
+## Native compaction
+
+In Settings, enter the WebSocket endpoint of the **existing local app-server that owns the chat**, with a bearer token if required. The token stays in memory. Connecting lists visible threads without starting/resuming one. Only confirmed loaded idle threads can expose Compact. The RPC client rechecks state before invoking `thread/compact/start`, and waits for its `contextCompaction` completion event. Availability depends on your client/server version; this does not promise universal access to desktop chats. No UI keystrokes, blind focus targeting or transcript replay are used.
+
+## Optional Touch Bar download
+
+```sh
+./script/package_touchbar.sh
+```
+
+Produces `dist/AIUsageBar-TouchBar.zip` separately from the main app. See [the add-on guide](addons/TouchBar/README.md). BetterTouchTool is an external prerequisite only for this add-on.
+
+## Local bridge
+
+```sh
+dist/AIUsageBar.app/Contents/Helpers/usagebar doctor
+dist/AIUsageBar.app/Contents/Helpers/usagebar status
+```
+
+The app owns one collector. The CLI and Touch Bar do not fetch credentials or provider usage. The bridge is a private same-user Unix socket with bounded messages, a versioned protocol, allowlisted commands, and target/revision checks. It exports no credentials. Context data and project labels are local metadata; treat exported diagnostics as private.
+
+Preferences and last-successful snapshots live under `~/Library/Application Support/AIUsageBar/`. The temporary bridge directory is `/private/tmp/ai-usage-bar-<uid>/` with owner-only permissions. No transcript contents are saved. Current logs/history are bounded to snapshots, not accumulating full traces.
+
+## Package and checks
+
+```sh
+AI_USAGE_BAR_CONFIGURATION=release ./script/build_and_run.sh --verify
+python3 script/verify_package.py dist/AIUsageBar.app
+./script/package_touchbar.sh
+```
+
+Local builds are ad-hoc signed for development, not distribution-ready or notarized. Public binaries require separate Developer ID signing/notarization. CI builds/tests and inspects the core bundle for accidental add-on assets. Measure core-only and add-on/BTT costs separately; no performance or 24-hour stability claims are made before measurement.
+
+## Development
+
+- Core data/contracts: `Sources/UsageCore/`
+- Native UI/services: `Sources/AIUsageBar/`
+- Thin client: `Sources/UsageBarCLI/`
+- Optional display resources: `addons/TouchBar/`
+- Meaningful boundary tests: `Tests/UsageCoreTests/`
+
+See [architecture](docs/architecture.md) and [implementation status](docs/status.md).
+
+MIT licensed. All code in this initial implementation is original; CodexBar documentation was used as integration research, not copied source. The APIs of experimental adapters can change.

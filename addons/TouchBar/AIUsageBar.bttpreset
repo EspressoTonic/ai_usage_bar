@@ -1,0 +1,32 @@
+{
+  "BTTPresetName": "AI Usage Bar \u2014 Touch Bar (experimental)",
+  "BTTPresetUUID": "74443210-77CE-47C1-92BB-4A399877F4BD",
+  "BTTPresetContent": [
+    {
+      "BTTAppBundleIdentifier": "BT.G",
+      "BTTAppName": "Global",
+      "BTTTriggers": [
+        {
+          "BTTUUID": "92A79C5C-B87B-4B57-B044-41D886CB38CB",
+          "BTTTriggerType": 642,
+          "BTTTriggerClass": "BTTTriggerTypeTouchBar",
+          "BTTEnabled": 1,
+          "BTTTouchBarButtonName": "AI Usage Bar",
+          "BTTTriggerConfig": {
+            "BTTTouchBarScriptUpdateInterval": 15,
+            "BTTTouchBarShellScriptString": "\"/Applications/AIUsageBar.app/Contents/Helpers/usagebar\" render --capture touchbar",
+            "BTTTouchBarButtonFontSize": 13,
+            "BTTTouchBarItemSFSymbolDefaultIcon": "arrow.down.right.and.arrow.up.left"
+          },
+          "BTTActionsToExecute": [
+            {
+              "BTTPredefinedActionType": 206,
+              "BTTShellTaskActionScript": "\"/Applications/AIUsageBar.app/Contents/Helpers/usagebar\" compact-captured touchbar",
+              "BTTShellTaskActionConfig": "/bin/bash:::-c:::-:::"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
