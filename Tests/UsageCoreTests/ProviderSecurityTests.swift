@@ -57,11 +57,11 @@ struct ProviderSecurityTests {
             let marker = await Task.detached { output.fileHandleForReading.availableData }.value
             #expect(String(decoding: marker, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines) == "body-started")
             let started = Date(); task.cancel()
-            do { _ = try await task.value; #expect(false) }
+            do { _ = try await task.value; #expect(Bool(false)) }
             catch { #expect(error is CancellationError) }
             #expect(Date().timeIntervalSince(started) < 1.5)
         } else if mode == "declared-limit" || mode == "stream-limit" {
-            do { _ = try await BoundedHTTP.data(for: request, maximum: 64, configuration: configuration); #expect(false) }
+            do { _ = try await BoundedHTTP.data(for: request, maximum: 64, configuration: configuration); #expect(Bool(false)) }
             catch {
                 #expect((error as? ProviderFailure)?.kind == .malformed)
                 #expect(!error.localizedDescription.contains("127.0.0.1"))

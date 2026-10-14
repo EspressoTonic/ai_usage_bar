@@ -16,7 +16,8 @@ struct SecurityTests {
         try store.save(value, name: "preferences.sealed")
         let decoded = try store.load([String: String].self, name: "preferences.sealed")
         #expect(decoded == value)
-        let bytes = try #require(PrivateFiles.read(directory: directory, name: "preferences.sealed"))
+        let storedBytes = try PrivateFiles.read(directory: directory, name: "preferences.sealed")
+        let bytes = try #require(storedBytes)
         #expect(!String(decoding: bytes, as: UTF8.self).contains("private-project"))
         let wrong = EncryptedJSONStore(directory: directory) { _ in SymmetricKey(size: .bits256) }
         #expect(throws: (any Error).self) { _ = try wrong.load([String: String].self, name: "preferences.sealed") }
@@ -38,7 +39,8 @@ struct SecurityTests {
         #expect(try PrivateFiles.read(directory: directory, name: "quota-cache.sealed") == nil)
         let key = SymmetricKey(size: .bits256)
         let store = EncryptedJSONStore(directory: directory) { _ in key }
-        let cache = try #require(store.load(QuotaCache.self, name: "quota-cache.sealed", legacyName: "snapshot.json"))
+        let loadedCache = try store.load(QuotaCache.self, name: "quota-cache.sealed", legacyName: "snapshot.json")
+        let cache = try #require(loadedCache)
         #expect(cache.providers == original.providers)
         let text = String(decoding: try JSONEncoder().encode(cache), as: UTF8.self)
         #expect(!text.contains("private-id") && !text.contains("private-title") && !text.contains("sessions"))

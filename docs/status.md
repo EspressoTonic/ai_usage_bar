@@ -40,3 +40,9 @@ Replaced credential path-attribute/unbounded reads with descriptor-based no-foll
 All **30 authored boundary cases** pass. The nine added cases cover credential file handling, malformed retry headers, and seven loopback HTTP modes: small/exact-limit success, declared/chunked overflow, redirect refusal, error-body discard and stalled-download cancellation. HTTP fixtures serve one bounded connection and close; the cancellation case waits for a server signal confirming that the response body has started. These are synthetic files and local servers, with no real provider credentials or chat mutation. Prior Keychain, live-provider and distribution gates remain open.
 
 The updated optimized ARM64 bundle passes core/add-on separation checks. Its current core file payload is **2,323,075 bytes** (about 2.22 MiB), an increase of 18,816 bytes over the previous security build. This supersedes that core size for this revision; no new memory or live Keychain measurements were taken.
+
+## Swift Testing compilation correction — 2026-10-14
+
+GitHub's full-Xcode runs for the security commits failed while compiling two `#require` expressions: their inner file-load calls could throw, but only the outer assertion was marked `try`. Local portable execution had stripped the macros, so its passing counts did not establish native macro compilation. Fixed the tests by evaluating throwing loads first and asserting their optional results separately.
+
+The CLT fallback now type-checks every original test source with Apple's bundled Swift Testing macro plugin before generating its runtime harness. It fails if that check cannot run or if any source fails to compile. The exact original CI error was reproduced with that compiler/plugin; the corrected sources type-check and all 30 authored cases pass locally. Full-Xcode test execution and packaging results are reported by the GitHub workflow. No production app behavior changes in this correction.

@@ -18,7 +18,7 @@ For a safe UI preview without credential reads, local session scans, or provider
 ./script/build_and_run.sh --verify --demo --preview
 ```
 
-On Command Line Tools-only Macs, `script/test.sh` executes the same authored cases through a portable runner because the bundled Swift Testing runtime can be incomplete. Full Xcode installations use `swift test`.
+On Command Line Tools-only Macs, `script/test.sh` first type-checks the original Swift Testing sources with the bundled macro plugin, then executes the same authored cases through a portable runner because the Testing runtime can be incomplete. It fails if the original macros cannot be checked. Full Xcode installations use `swift test`.
 
 The app is intentionally menu-bar-only (no Dock icon). Click the chart icon to open the popover. Settings are available from its gear button. The packaged app is `dist/AIUsageBar.app`; its small CLI is `Contents/Helpers/usagebar`. The Codex Run action uses the same build/run script.
 
