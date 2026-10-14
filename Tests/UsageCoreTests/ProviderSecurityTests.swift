@@ -40,38 +40,33 @@ struct ProviderSecurityTests {
     func streamedResponsesAreBoundedAndCancellable(mode: String) async throws {
         let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("Fixtures/http_server.py")
-        let process = Process(); let output = Pipe()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["python3", fixture.path, mode]
-        process.standardOutput = output; process.standardError = FileHandle.nullDevice
-        try process.run()
-        defer { if process.isRunning { process.terminate() }; process.waitUntilExit() }
-        let line = output.fileHandleForReading.availableData
-        let port = try #require(Int(String(decoding: line, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)))
-        let request = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/")!)
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 2; configuration.timeoutIntervalForResource = 4
-        if mode == "cancel" {
-            let task = Task { try await BoundedHTTP.data(for: request, maximum: 64, configuration: configuration) }
-            // Wait for the fixture to confirm it sent headers and the first chunk, rather than guessing timing.
-            let marker = await Task.detached { output.fileHandleForReading.availableData }.value
-            #expect(String(decoding: marker, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines) == "body-started")
-            let started = Date(); task.cancel()
-            do { _ = try await task.value; #expect(Bool(false)) }
-            catch { #expect(error is CancellationError) }
-            #expect(Date().timeIntervalSince(started) < 1.5)
-        } else if mode == "declared-limit" || mode == "stream-limit" {
-            do { _ = try await BoundedHTTP.data(for: request, maximum: 64, configuration: configuration); #expect(Bool(false)) }
-            catch {
-                #expect((error as? ProviderFailure)?.kind == .malformed)
-                #expect(!error.localizedDescription.contains("127.0.0.1"))
+        try await FixtureServer.withServer(script: fixture, mode: mode) { server in
+            let request = URLRequest(url: URL(string: "http://127.0.0.1:\(server.port)/")!)
+            let configuration = URLSessionConfiguration.ephemeral
+            configuration.timeoutIntervalForRequest = 2; configuration.timeoutIntervalForResource = 4
+            if mode == "cancel" {
+                let task = Task { try await BoundedHTTP.data(for: request, maximum: 64, configuration: configuration) }
+                // Wait for the fixture to confirm it sent headers and the first chunk, rather than guessing timing.
+                defer { task.cancel() }
+                let bodyStarted = try await server.waitForBody()
+                #expect(bodyStarted)
+                let started = Date(); task.cancel()
+                do { _ = try await task.value; #expect(Bool(false)) }
+                catch { #expect(error is CancellationError) }
+                #expect(Date().timeIntervalSince(started) < 1.5)
+            } else if mode == "declared-limit" || mode == "stream-limit" {
+                do { _ = try await BoundedHTTP.data(for: request, maximum: 64, configuration: configuration); #expect(Bool(false)) }
+                catch {
+                    #expect((error as? ProviderFailure)?.kind == .malformed)
+                    #expect(!error.localizedDescription.contains("127.0.0.1"))
+                }
+            } else {
+                let (data, http) = try await BoundedHTTP.data(for: request, maximum: 64, configuration: configuration)
+                if mode == "redirect" { #expect(http.statusCode == 302 && data.isEmpty) }
+                else if mode == "auth-error" { #expect(http.statusCode == 401 && data.isEmpty) }
+                else if mode == "exact-limit" { #expect(data.count == 64 && http.statusCode == 200) }
+                else { #expect(data == Data("{\"ok\":true}".utf8) && http.statusCode == 200) }
             }
-        } else {
-            let (data, http) = try await BoundedHTTP.data(for: request, maximum: 64, configuration: configuration)
-            if mode == "redirect" { #expect(http.statusCode == 302 && data.isEmpty) }
-            else if mode == "auth-error" { #expect(http.statusCode == 401 && data.isEmpty) }
-            else if mode == "exact-limit" { #expect(data.count == 64 && http.statusCode == 200) }
-            else { #expect(data == Data("{\"ok\":true}".utf8) && http.statusCode == 200) }
         }
     }
 }

@@ -32,7 +32,7 @@ print('Original Swift Testing macros type-check successfully.', flush=True)
 
 generated = root/'.build/portable-tests'; generated.mkdir(exist_ok=True)
 sources=[]
-for name in ['CoreTests.swift','RPCTests.swift','SecurityTests.swift','ProviderSecurityTests.swift']:
+for name in ['CoreTests.swift','RPCTests.swift','SecurityTests.swift','ProviderSecurityTests.swift','FixtureServer.swift']:
     original = root/'Tests/UsageCoreTests'/name
     text=original.read_text().replace('import Testing\n','')
     text=re.sub(r'@Test(?:\(arguments: \[[^\]]*\]\))?\s*','',text)
@@ -46,9 +46,14 @@ support.write_text(r'''import Foundation
 import Darwin
 
 private var failureCount = 0
+private let failureLock = NSLock()
+func recordFailure(_ message: String) {
+    failureLock.lock(); failureCount += 1; failureLock.unlock()
+    fputs(message, stderr)
+}
 func expect(_ value: @autoclosure () throws -> Bool, file: String = #filePath, line: Int = #line) {
-    do { if try !value() { failureCount += 1; fputs("FAIL \(file):\(line)\n", stderr) } }
-    catch { failureCount += 1; fputs("Unexpected assertion error \(file):\(line)\n", stderr) }
+    do { if try !value() { recordFailure("FAIL \(file):\(line)\n") } }
+    catch { recordFailure("Unexpected assertion error \(file):\(line)\n") }
 }
 func expect(throws type: (any Error).Type, _ work: () throws -> Void) {
     do { try work(); expect(false) } catch {}
@@ -77,10 +82,6 @@ func requireValue<T>(_ value: T?) throws -> T {
             try await core.testUnixBridgeRoundTripAndSingleOwner()
             try core.testBridgeRejectsPublicDirectory()
             try await core.testScannerCachesAndRestrictsRecentDirectories()
-            for mode in ["after-ack", "before-ack", "busy"] {
-                try await rpc.nativeCompactionRequiresMatchingCompletion(mode: mode)
-                print("RPC boundary checked: \(mode)")
-            }
             await rpc.rejectsRemoteEndpointWithoutConnecting()
             try security.encryptedStorageRejectsTamperingWrongKeyAndWrongFile()
             try security.migrationMinimizesChatDataAndPreservesPlaintextIfKeyFails()
@@ -90,12 +91,23 @@ func requireValue<T>(_ value: T?) throws -> T {
             security.providerRedirectsNeverReceiveAuthorization()
             try providers.credentialsRejectUnsafeFilesWithoutChangingThem()
             providers.retryHeadersCannotCreateInfiniteOrUnboundedDelays()
-            for mode in ["small", "exact-limit", "declared-limit", "stream-limit", "redirect", "auth-error", "cancel"] {
-                print("HTTP boundary starting: \(mode)")
-                try await providers.streamedResponsesAreBoundedAndCancellable(mode: mode)
-                print("HTTP boundary checked: \(mode)")
+            // Match native Swift Testing's concurrent fixture execution, even on CLT-only Macs.
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                for mode in ["after-ack", "before-ack", "busy"] {
+                    group.addTask {
+                        try await rpc.nativeCompactionRequiresMatchingCompletion(mode: mode)
+                        print("RPC boundary checked: \(mode)")
+                    }
+                }
+                for mode in ["small", "exact-limit", "declared-limit", "stream-limit", "redirect", "auth-error", "cancel"] {
+                    group.addTask {
+                        try await providers.streamedResponsesAreBoundedAndCancellable(mode: mode)
+                        print("HTTP boundary checked: \(mode)")
+                    }
+                }
+                try await group.waitForAll()
             }
-        } catch { failureCount += 1; fputs("Unexpected test error: \(error)\n", stderr) }
+        } catch { recordFailure("Unexpected test error: \(error)\n") }
         if failureCount > 0 { fputs("\(failureCount) failed assertions\n", stderr); exit(1) }
         print("30 boundary cases passed (portable runner; same authored tests).")
     }
