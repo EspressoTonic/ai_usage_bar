@@ -30,6 +30,9 @@ struct RPCTests {
     }
     @Test func rejectsRemoteEndpointWithoutConnecting() async {
         let rpc = CodexRPCClient()
-        await #expect(throws: (any Error).self) { try await rpc.connect(endpoint: "ws://example.com:4500") }
+        for endpoint in ["ws://example.com:4500", "ws://example:password@127.0.0.1:4500",
+                         "ws://127.0.0.1:4500?token=example", "ws://127.0.0.1:4500#secret"] {
+            await #expect(throws: (any Error).self) { try await rpc.connect(endpoint: endpoint) }
+        }
     }
 }

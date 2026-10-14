@@ -7,6 +7,10 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - run: python3 script/check_secrets.py --history
+      - run: python3 script/test_secret_guard.py
       - run: ./script/test.sh
       - run: ./script/package_app.sh release
       - run: ./script/package_touchbar.sh

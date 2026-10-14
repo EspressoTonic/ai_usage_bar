@@ -12,7 +12,7 @@ subprocess.run(['swift', 'build'], cwd=root, check=True)
 binary_dir = Path(subprocess.check_output(['swift','build','--show-bin-path'], cwd=root, text=True).strip())
 generated = root/'.build/portable-tests'; generated.mkdir(exist_ok=True)
 sources=[]
-for name in ['CoreTests.swift','RPCTests.swift']:
+for name in ['CoreTests.swift','RPCTests.swift','SecurityTests.swift']:
     original = root/'Tests/UsageCoreTests'/name
     text=original.read_text().replace('import Testing\n','')
     text=re.sub(r'@Test(?:\(arguments: \[[^\]]*\]\))?\s*','',text)
@@ -26,8 +26,9 @@ support.write_text(r'''import Foundation
 import Darwin
 
 private var failureCount = 0
-func expect(_ value: @autoclosure () -> Bool, file: String = #filePath, line: Int = #line) {
-    if !value() { failureCount += 1; fputs("FAIL \(file):\(line)\n", stderr) }
+func expect(_ value: @autoclosure () throws -> Bool, file: String = #filePath, line: Int = #line) {
+    do { if try !value() { failureCount += 1; fputs("FAIL \(file):\(line)\n", stderr) } }
+    catch { failureCount += 1; fputs("Unexpected assertion error \(file):\(line)\n", stderr) }
 }
 func expect(throws type: (any Error).Type, _ work: () throws -> Void) {
     do { try work(); expect(false) } catch {}
@@ -42,7 +43,7 @@ func requireValue<T>(_ value: T?) throws -> T {
 
 @main struct Runner {
     static func main() async {
-        let core=CoreTests(); let rpc=RPCTests()
+        let core=CoreTests(); let rpc=RPCTests(); let security=SecurityTests()
         do {
             core.testCodexKeepsServerWindowDurationsAndMissingValuesUnknown()
             core.testPercentRejectsBooleansAndOutOfRange()
@@ -60,9 +61,15 @@ func requireValue<T>(_ value: T?) throws -> T {
                 print("RPC boundary checked: \(mode)")
             }
             await rpc.rejectsRemoteEndpointWithoutConnecting()
+            try security.encryptedStorageRejectsTamperingWrongKeyAndWrongFile()
+            try security.migrationMinimizesChatDataAndPreservesPlaintextIfKeyFails()
+            try security.privateFilesRejectSymlinksPublicPermissionsAndOversize()
+            try security.bridgePrivacyRequiresExplicitChatAccess()
+            try security.capturedTargetsExpireAndRejectFutureTimestamps()
+            security.providerRedirectsNeverReceiveAuthorization()
         } catch { failureCount += 1; fputs("Unexpected test error: \(error)\n", stderr) }
         if failureCount > 0 { fputs("\(failureCount) failed assertions\n", stderr); exit(1) }
-        print("15 boundary cases passed (portable runner; same authored tests).")
+        print("21 boundary cases passed (portable runner; same authored tests).")
     }
 }
 ''')

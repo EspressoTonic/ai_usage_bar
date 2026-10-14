@@ -7,6 +7,8 @@ import UsageCore
     @Published var notice: String?
     @Published var rpcConnected = false
     @Published var rpcBusy = false
+    @Published var allowExternalChatAccess = false // Deliberately resets each launch.
+    private var persistenceReady = false
     @Published var tab = "usage"
     let demo: Bool
     private var sampler: SystemSampler?
@@ -25,29 +27,15 @@ import UsageCore
     init(demo: Bool = false) {
         self.demo = demo
         if demo { snapshot = DemoContent.snapshot() }
-        else {
-            if let prefs = LocalStore.load(Preferences.self, name: "preferences.json"), prefs.schemaVersion == 1 { preferences = prefs }
-            if let cache = LocalStore.load(AppSnapshot.self, name: "snapshot.json"), cache.schemaVersion == 1, !cache.demo {
-                snapshot.providers = cache.providers.map { state in
-                    var copy = state; copy.refreshing = false; copy.error = copy.snapshot == nil ? nil : "Previous reading · refresh to verify"
-                    return copy
-                }
-            }
-            for provider in ProviderID.allCases {
-                if let index = snapshot.providers.firstIndex(where: { $0.id == provider }) {
-                    snapshot.providers[index].enabled = preferences.providers[provider.rawValue]?.enabled == true
-                    if !snapshot.providers[index].enabled { snapshot.providers[index].snapshot = nil; snapshot.providers[index].error = nil }
-                }
-            }
-        }
         let server = UnixBridgeServer { [weak self] request in
             guard let self else { return BridgeResponse(ok: false, message: "App stopped.") }
-            return await self.handle(request)
+            return await self.handleBridge(request)
         }
         do { try server.start(); bridge = server }
         catch { notice = error.localizedDescription }
         guard bridge != nil else { return } // A second instance must not start another collector.
         loop = Task { [weak self] in
+            await self?.restorePrivateState()
             while !Task.isCancelled {
                 guard let self else { return }
                 await self.tick()
@@ -56,13 +44,40 @@ import UsageCore
             }
         }
     }
+    private func restorePrivateState() async {
+        guard !demo else { return }
+        do {
+            if let prefs = try await LocalStore.shared.loadPreferences(), prefs.schemaVersion == 1 { preferences = prefs }
+            if let cache = try await LocalStore.shared.loadCache(), cache.schemaVersion == 1 {
+                snapshot.providers = cache.providers.map { state in
+                    var copy = state; copy.refreshing = false
+                    copy.error = copy.snapshot == nil ? nil : "Previous reading · refresh to verify"
+                    return copy
+                }
+            }
+            for index in snapshot.providers.indices {
+                let enabled = preferences.providers[snapshot.providers[index].id.rawValue]?.enabled == true
+                snapshot.providers[index].enabled = enabled
+                if !enabled { snapshot.providers[index].snapshot = nil; snapshot.providers[index].error = nil }
+            }
+            persistenceReady = true
+        } catch {
+            // No automatic overwrite of unreadable encrypted data and no restored provider authorization.
+            preferences = Preferences(); snapshot = AppSnapshot()
+            notice = "Private storage could not be opened. Existing data is preserved; settings will not be saved this launch."
+        }
+    }
     deinit { loop?.cancel(); providerTasks.values.forEach { $0.cancel() }; bridge?.stop() }
 
     func visible(_ shown: Bool) { visibleSurfaces = max(0, visibleSurfaces + (shown ? 1 : -1)) }
     func savePreferences() {
         guard !demo else { return }
-        do { try LocalStore.save(preferences, name: "preferences.json") }
-        catch { notice = "Settings could not be saved." }
+        guard persistenceReady else { notice = "Private storage is unavailable; settings have not been saved."; return }
+        let value = preferences
+        Task {
+            do { try await LocalStore.shared.savePreferences(value) }
+            catch { notice = "Settings could not be encrypted and saved. No plaintext fallback was used." }
+        }
     }
     func configure(_ provider: ProviderID, enabled: Bool) {
         guard !demo else { return }
@@ -178,6 +193,14 @@ import UsageCore
         CompactionGate.rejection(request: BridgeRequest(command: "compact", chatID: snapshot.selectedChatID,
                                                        selectionRevision: snapshot.selectionRevision, requestID: "ui"), snapshot: snapshot)
     }
+    func handleBridge(_ request: BridgeRequest) -> BridgeResponse {
+        if let reason = BridgePrivacy.rejection(command: request.command, allowChatAccess: allowExternalChatAccess) {
+            return BridgeResponse(ok: false, message: reason)
+        }
+        var response = handle(request)
+        if let value = response.snapshot { response.snapshot = BridgePrivacy.snapshot(value, allowChatAccess: allowExternalChatAccess) }
+        return response
+    }
     func handle(_ request: BridgeRequest) -> BridgeResponse {
         guard request.version == 1 else { return BridgeResponse(ok: false, message: "Incompatible bridge version.") }
         switch request.command {
@@ -228,7 +251,11 @@ import UsageCore
     private func publish() {
         snapshot.generatedAt = Date()
         guard !demo else { return }
-        do { try LocalStore.save(snapshot, name: "snapshot.json") }
-        catch { notice = "Snapshot cache could not be saved." }
+        guard persistenceReady else { return }
+        let cache = QuotaCache(providers: snapshot.providers)
+        Task {
+            do { try await LocalStore.shared.saveCache(cache) }
+            catch { notice = "Quota cache could not be encrypted and saved. No plaintext fallback was used." }
+        }
     }
 }

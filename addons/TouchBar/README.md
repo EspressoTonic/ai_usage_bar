@@ -5,8 +5,9 @@ This is a separate download. The main app does not bundle this preset or depend 
 1. Build/install the main app as `/Applications/AIUsageBar.app` (or edit the binary path in BTT).
 2. Install BetterTouchTool separately on a Touch Bar Mac.
 3. Import `AIUsageBar.bttpreset`. Inspect the imported Shell Script widget and its assigned action before enabling it.
-4. Select a chat in the main app. The widget reads cached context every 15 seconds.
-5. Tapping the widget requests compaction of the target captured when its label was rendered. The core validates its ID/revision and native capability. A selection change causes rejection. Read operation completion/failure in the main app.
+4. In the main app's Settings, enable **Allow external tools to read chats and request compaction** for this launch. This exposes chat metadata/actions to processes running as your user; enable only when you trust your local tools. It resets on app restart.
+5. Select a chat in the main app. The widget reads cached context every 15 seconds.
+6. Tapping the widget requests compaction of the target captured when its label was rendered. The core validates its ID/revision and native capability. A selection change, a consumed target or a target older than 30 seconds causes rejection. Read operation completion/failure in the main app.
 
 The CLI bridge and identity checks are tested. Preset import and physical Touch Bar interaction still require hardware/BTT verification; they are not advertised as production-supported yet. Missing/unsupported context disables the action at the core even if BTT shows the widget.
 

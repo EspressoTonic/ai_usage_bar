@@ -35,10 +35,12 @@ do {
     case "compact-captured":
         guard arguments.count == 2, validClientID(arguments[1]) else { fail("usagebar compact-captured <client-id>") }
         let capture = BridgePaths.directory.appendingPathComponent("captured-\(arguments[1]).json")
-        let data = try Data(contentsOf: capture)
-        guard data.count <= 8192 else { fail("Invalid captured display target.") }
-        request = try JSONDecoder().decode(BridgeRequest.self, from: data)
-        guard request.command == "compact" else { fail("Invalid captured command.") }
+        guard let data = try PrivateFiles.read(directory: BridgePaths.directory, name: capture.lastPathComponent, maximum: 8192) else {
+            fail("Refresh the display before compacting.")
+        }
+        request = try JSONDecoder().decode(CapturedAction.self, from: data).validate()
+        // Consume before sending. A failed request needs a freshly rendered target.
+        try PrivateFiles.remove(directory: BridgePaths.directory, name: capture.lastPathComponent)
     case "render":
         guard arguments.count == 3, arguments[1] == "--capture", validClientID(arguments[2]) else { fail("usagebar render --capture <client-id>") }
     case "status", "doctor": break
@@ -50,12 +52,16 @@ do {
         if let snapshot = response.snapshot, let chat = snapshot.selectedChat {
             let target = BridgeRequest(command: "compact", chatID: chat.id, selectionRevision: snapshot.selectionRevision, requestID: UUID().uuidString)
             let url = BridgePaths.directory.appendingPathComponent("captured-\(arguments[2]).json")
-            try JSONEncoder().encode(target).write(to: url, options: .atomic)
-            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
-            let percent = chat.contextPercent.map { "\(Int($0))%" } ?? "—"
             let canCompact = CompactionGate.rejection(request: target, snapshot: snapshot) == nil
+            if canCompact {
+                try PrivateFiles.write(JSONEncoder().encode(CapturedAction(request: target)), directory: BridgePaths.directory, name: url.lastPathComponent)
+            } else { try PrivateFiles.remove(directory: BridgePaths.directory, name: url.lastPathComponent) }
+            let percent = chat.contextPercent.map { "\(Int($0))%" } ?? "—"
             print("\(String(chat.title.prefix(18))) · \(percent)\(canCompact ? " · Compact" : "")")
-        } else { print("Choose a chat in AI Usage Bar") }
+        } else {
+            try PrivateFiles.remove(directory: BridgePaths.directory, name: "captured-\(arguments[2]).json")
+            print("Choose a chat / enable external access in Settings")
+        }
     } else if command == "doctor" {
         print("Bridge v\(response.version) · connected · \(response.snapshot?.sessions.count ?? 0) visible chats\(response.snapshot?.demo == true ? " · demo mode" : "")")
     } else {

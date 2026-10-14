@@ -7,6 +7,7 @@ A native macOS menu-bar utility for coding-provider quota, per-chat context, and
 Requires macOS 13+ and a Swift 6 toolchain. No third-party Swift dependencies.
 
 ```sh
+python3 script/check_secrets.py
 ./script/test.sh
 ./script/build_and_run.sh
 ```
@@ -63,9 +64,9 @@ dist/AIUsageBar.app/Contents/Helpers/usagebar doctor
 dist/AIUsageBar.app/Contents/Helpers/usagebar status
 ```
 
-The app owns one collector. The CLI and Touch Bar do not fetch credentials or provider usage. The bridge is a private same-user Unix socket with bounded messages, a versioned protocol, allowlisted commands, and target/revision checks. It exports no credentials. Context data and project labels are local metadata; treat exported diagnostics as private.
+The app owns one collector. The CLI and Touch Bar do not fetch credentials or provider usage. The bridge is a private same-user Unix socket with bounded messages, a versioned protocol, allowlisted commands, and target/revision checks. Default snapshots omit chats and redact account fingerprints. External chat access and compaction require a Settings permission that resets each launch. While enabled, any process running as your user can use that chat bridge. Treat its output and display labels as private.
 
-Preferences and last-successful snapshots live under `~/Library/Application Support/AIUsageBar/`. The temporary bridge directory is `/private/tmp/ai-usage-bar-<uid>/` with owner-only permissions. No transcript contents are saved. Current logs/history are bounded to snapshots, not accumulating full traces.
+Preferences and a quota-only cache are AES-GCM encrypted under `~/Library/Application Support/AIUsageBar/`, with a separate app-owned macOS Keychain key. Chat metadata and operations stay in memory. Old app-owned plaintext files migrate only after successful encryption. No plaintext fallback is used. The temporary bridge directory is `/private/tmp/ai-usage-bar-<uid>/` with owner-only permissions; captured action targets expire after 30 seconds and are consumed before use. See [security and privacy rules](SECURITY.md) for Git exclusions, Keychain limitations and release gates.
 
 ## Package and checks
 

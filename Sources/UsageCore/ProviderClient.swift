@@ -95,7 +95,7 @@ public struct ProviderClient {
         }
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForResource = 12
-        let session = URLSession(configuration: configuration)
+        let session = URLSession(configuration: configuration, delegate: NoRedirects(), delegateQueue: nil)
         defer { session.invalidateAndCancel() }
         let data: Data
         let response: URLResponse
@@ -114,5 +114,13 @@ public struct ProviderClient {
             throw ProviderFailure(.malformed, "Provider response could not be decoded.")
         }
         return json
+    }
+}
+
+/// Credentials only reach the exact fixed endpoint; a redirect is an error, never a new token recipient.
+final class NoRedirects: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        completionHandler(nil)
     }
 }

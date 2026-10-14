@@ -38,11 +38,21 @@ struct SettingsView: View {
                     TextField("Existing local app-server", text: $store.preferences.rpcEndpoint)
                     SecureField("Server bearer token (optional, memory only)", text: $bearer)
                     HStack {
-                        Button(store.rpcConnected ? "Reconnect" : "Connect") { Task { await store.connectRPC(bearer: bearer) } }.disabled(store.rpcBusy || store.demo)
+                        Button(store.rpcConnected ? "Reconnect" : "Connect") {
+                            let token = bearer; bearer = ""
+                            Task { await store.connectRPC(bearer: token) }
+                        }.disabled(store.rpcBusy || store.demo)
                         if store.rpcConnected { Button("Disconnect") { store.disconnectRPC() }.disabled(store.rpcBusy) }
                         if store.rpcBusy { ProgressView().controlSize(.small) }
                     }
                     Text("Connect to the server that already owns the chat. The app never starts or resumes a replacement chat for monitoring.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+                Section("Privacy & external controls") {
+                    Text("Settings and quota cache are encrypted with an app-specific Keychain key. Chat labels, IDs and operations stay in memory. Provider tokens are never saved by this app.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Toggle("Allow external tools to read chats and request compaction", isOn: $store.allowExternalChatAccess)
+                    Text("Required for the Touch Bar Compact button. Resets when the app restarts. While enabled, any process running as your user can access this bridge; enable only when you trust your local tools.")
                         .font(.caption2).foregroundStyle(.secondary)
                 }
                 Section("Efficiency") {
@@ -60,6 +70,7 @@ struct SettingsView: View {
             }.formStyle(.grouped)
             if let notice = store.notice { Text(notice).font(.caption).foregroundStyle(.orange) }
         }.padding(20).frame(width: 600, height: 720)
+            .onDisappear { bearer = "" }
             .onChange(of: store.preferences.monitorSystem) { _ in store.savePreferences() }
             .onChange(of: store.preferences.refreshSeconds) { _ in store.savePreferences() }
             .onChange(of: store.preferences.contextThreshold) { _ in store.savePreferences() }

@@ -72,6 +72,7 @@ public enum UnixBridgeClient {
 public final class UnixBridgeServer: @unchecked Sendable {
     private var listener: Int32 = -1
     private let lock = NSLock()
+    private let pending = DispatchSemaphore(value: 4)
     private let queue = DispatchQueue(label: "aiusagebar.bridge", qos: .utility)
     private let path: String
     private let handler: @Sendable (BridgeRequest) async -> BridgeResponse
@@ -100,26 +101,28 @@ public final class UnixBridgeServer: @unchecked Sendable {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
         }
         guard bound == 0 else { close(fd); throw BridgeError("Could not bind the local bridge.") }
-        chmod(path, 0o600)
+        guard chmod(path, 0o600) == 0 else { close(fd); unlink(path); throw BridgeError("Could not protect the local socket.") }
         guard listen(fd, 4) == 0 else { close(fd); unlink(path); throw BridgeError("Could not listen on bridge.") }
         lock.lock(); listener = fd; lock.unlock()
         queue.async { [weak self] in
             while let self, self.isCurrent(fd) {
                 let peer = accept(fd, nil, nil)
                 if peer < 0 { if !self.isCurrent(fd) { break }; continue }
-                // Handle one bounded message per connection; queue prevents unlimited simultaneous tasks.
+                // Bound asynchronous handlers too; serial accept alone does not bound in-flight Tasks.
+                guard self.pending.wait(timeout: .now()) == .success else { close(peer); continue }
                 timeouts(peer)
                 var uid: uid_t = 0; var gid: gid_t = 0
-                guard getpeereid(peer, &uid, &gid) == 0, uid == getuid() else { close(peer); continue }
+                guard getpeereid(peer, &uid, &gid) == 0, uid == getuid() else { close(peer); self.pending.signal(); continue }
                 do {
                     let request = try JSONDecoder().decode(BridgeRequest.self, from: readLine(peer, maximum: 8192))
-                    let handler = self.handler
+                    let handler = self.handler; let pending = self.pending
                     Task {
+                        defer { pending.signal() }
                         let response = await handler(request)
                         try? writeLine(peer, data: JSONEncoder().encode(response))
                         close(peer)
                     }
-                } catch { close(peer) }
+                } catch { close(peer); self.pending.signal() }
             }
         }
     }

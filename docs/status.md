@@ -21,4 +21,14 @@ Remaining release gates:
 - Intel runtime coverage and oldest supported macOS.
 - Credential rotation, overnight sleep/wake and a measured 24-hour soak.
 - Public signing/notarization, release upgrade/rollback and final name.
-- Startup-at-login UI and own-Keychain management if needed; neither is implemented yet.
+- Startup-at-login UI and user-facing Keychain recovery/reset management; neither is implemented yet. App-owned encryption-key storage is implemented in the security checkpoint below, with live validation pending.
+
+## Security hardening — 2026-10-14
+
+Added AES-GCM local storage with an app-specific Keychain key, a quota-only disk model, successful-encryption-before-removal migration, no plaintext fallback, owner-only atomic files and unsafe-file rejection. Chat metadata and system history are no longer persisted. External chat access/compaction are opt-in per launch; bridge account fingerprints are redacted. Captured Touch Bar actions expire in 30 seconds and are consumed before dispatch. Provider/RPC redirects are denied; RPC URLs reject embedded secrets and enforce a WebSocket size limit. Bridge asynchronous handlers are bounded.
+
+Expanded `.gitignore` and added a redacted, limited secret guard with full-history CI scanning. All 21 Swift boundary cases pass, plus synthetic secret-guard cases including a deleted secret remaining in Git history. No covered secret patterns were found in the initial published commit or current sources. This is not a comprehensive secret scan or security audit.
+
+Storage tests inject disposable keys. Real Keychain access, upgrade identity and denial behavior have not yet been exercised. The development Keychain uses macOS file-based access controls; signed distribution must review the data-protection Keychain route and validate migrations. Other release gates above remain open. See [SECURITY.md](../SECURITY.md).
+
+The hardened ARM64 optimized core builds and passes bundle separation checks. Its current file payload is **2,304,259 bytes** (about 2.20 MiB); the separately packaged Touch Bar ZIP is **2,578 bytes**. These supersede the earlier size measurements for this revision. No new resident-memory measurement or normal-mode Keychain launch was performed for this checkpoint.

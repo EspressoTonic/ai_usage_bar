@@ -12,15 +12,17 @@ public actor CodexRPCClient {
     public func connect(endpoint: String, bearer: String = "") async throws {
         guard !inUse else { throw BridgeError("Another app-server operation is in progress.") }
         inUse = true; defer { inUse = false }
-        guard let url = URL(string: endpoint), url.scheme == "ws", ["127.0.0.1", "localhost", "::1"].contains(url.host ?? "") else {
+        guard let url = URL(string: endpoint), url.scheme == "ws", ["127.0.0.1", "localhost", "::1"].contains(url.host ?? ""),
+              url.user == nil, url.password == nil, url.query == nil, url.fragment == nil else {
             throw BridgeError("Use an existing local ws://127.0.0.1 app-server endpoint.")
         }
         disconnect()
         let config = URLSessionConfiguration.ephemeral; config.timeoutIntervalForRequest = 8
-        let session = URLSession(configuration: config)
+        let session = URLSession(configuration: config, delegate: NoRedirects(), delegateQueue: nil)
         var request = URLRequest(url: url)
         if !bearer.isEmpty { request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization") }
         let task = session.webSocketTask(with: request)
+        task.maximumMessageSize = 2_097_152
         self.session = session; self.socket = task; task.resume()
         _ = try await requestRPC("initialize", params: ["clientInfo": ["name": "ai_usage_bar", "version": "0.1.0"],
                                                          "capabilities": ["experimentalApi": false]])
