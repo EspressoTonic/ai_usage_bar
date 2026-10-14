@@ -5,6 +5,7 @@ enum DemoContent {
     static func snapshot() -> AppSnapshot {
         var value = AppSnapshot(); value.demo = true
         let quotas: [(ProviderID, [(String, Double)])] = [(.codex, [("5 hours", 28), ("Weekly", 59)]),
+            (.antigravity, [("Gemini Models · Weekly", 23), ("Gemini Models · 5 hours", 8), ("Claude + GPT · Weekly", 42), ("Claude + GPT · 5 hours", 16)]),
             (.gemini, [("Gemini Pro", 34), ("Gemini Flash", 12)]), (.claude, [("5 hours", 47), ("Weekly", 31)])]
         value.providers = quotas.map { provider, windows in
             var state = ProviderState(id: provider, enabled: true)

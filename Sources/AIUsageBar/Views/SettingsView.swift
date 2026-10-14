@@ -7,16 +7,22 @@ struct SettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Connections & preferences").font(.title2).fontWeight(.semibold)
-            Text("Providers are off until you enable them. Enabling a provider reads its existing CLI sign-in file and sends usage requests only to that provider.")
+            Text("Providers are off until enabled. Antigravity uses its agy usage command; other providers read their existing CLI sign-in file.")
                 .font(.caption).foregroundStyle(.secondary)
             Form {
                 Section("Provider usage") {
                     ForEach(ProviderID.allCases) { provider in
                         VStack(alignment: .leading, spacing: 6) {
                             Toggle(provider.title, isOn: Binding(get: { store.preferences.providers[provider.rawValue]?.enabled ?? false }, set: { store.configure(provider, enabled: $0) }))
-                            TextField("CLI sign-in file", text: Binding(get: { store.preferences.providers[provider.rawValue]?.credentialPath ?? "" }, set: { store.changeCredential(provider, path: $0) }))
+                            TextField(provider == .antigravity ? "Antigravity CLI executable" : "CLI sign-in file", text: Binding(get: { store.preferences.providers[provider.rawValue]?.credentialPath ?? "" }, set: { store.changeCredential(provider, path: $0) }))
                                 .font(.caption.monospaced())
+                            if provider == .antigravity {
+                                Text("Uses your existing agy login and structured /usage report. Select ~/.local/bin/agy or its installed location. Automatic refresh is at least 5 minutes; CLI startup can take time.")
+                                    .font(.caption2).foregroundStyle(.secondary)
+                            }
                             if provider == .gemini {
+                                Text("Gemini CLI sign-in only. For Antigravity, enable its separate provider above or below.")
+                                    .font(.caption2).foregroundStyle(.secondary)
                                 TextField("Google project (optional)", text: Binding(get: { store.preferences.providers[provider.rawValue]?.project ?? "" }, set: {
                                     store.preferences.providers[provider.rawValue]?.project = $0; store.savePreferences()
                                 }))

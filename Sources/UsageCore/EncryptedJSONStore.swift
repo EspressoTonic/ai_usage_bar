@@ -39,5 +39,20 @@ public final class EncryptedJSONStore {
 public struct QuotaCache: Codable, Equatable {
     public var schemaVersion = 1
     public var providers: [ProviderState]
-    public init(providers: [ProviderState]) { self.providers = providers }
+    public init(providers: [ProviderState]) {
+        self.providers = providers.map { state in
+            guard state.id == .antigravity else { return state }
+            var copy = state; copy.snapshot = nil; copy.error = nil; copy.refreshing = false
+            return copy // Native usage reports do not establish account identity.
+        }
+    }
+    public func restored(enabled: Set<ProviderID>) -> [ProviderState] {
+        ProviderID.allCases.map { id in
+            var copy = providers.first { $0.id == id } ?? ProviderState(id: id)
+            copy.enabled = enabled.contains(id); copy.refreshing = false
+            if !copy.enabled || id == .antigravity { copy.snapshot = nil; copy.error = nil; copy.nextAttempt = nil }
+            else { copy.error = copy.snapshot == nil ? nil : "Previous reading · refresh to verify" }
+            return copy
+        }
+    }
 }

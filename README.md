@@ -29,6 +29,7 @@ The app is intentionally menu-bar-only (no Dock icon). Click the chart icon to o
 | Native menu-bar UI and settings | Implemented; live-provider connections start disabled |
 | CPU/RAM and memory-pressure sampling | Implemented with slower background/Low Power sampling |
 | Codex quota | Experimental CLI OAuth adapter; fixtures tested; live account validation pending |
+| Antigravity quota | Native `agy -p /usage --output-format json`; separate groups/windows; live verified with agy 1.3.5 |
 | Gemini CLI quota | Experimental OAuth adapter, model buckets and unsupported-tier state; live validation pending |
 | Claude quota | Experimental `.credentials.json` OAuth adapter; Keychain-only sign-in not supported yet |
 | Local Codex context | Opt-in, bounded recent rollout metadata; last-turn estimate, not an exact live working-set measurement |
@@ -39,7 +40,11 @@ Session discovery is limited to recent local Codex rollout files. Client labels 
 
 ## Connect a provider
 
-Enable the provider in Settings only after reviewing its credential path. This reads your existing CLI OAuth token and calls only that provider's fixed usage endpoints. Providers are independent; disabling one cancels its refresh and clears its visible/cache state. Tokens are not stored in the app's settings, snapshots, CLI output or logs. Expired tokens must be renewed by their owning CLI; the app does not overwrite shared credential files. Sign-in files must be regular files owned by your user, with owner-only permissions (normally `0600`), and the selected file must not be a symlink. Unsafe permissions produce an error; the app never changes them automatically. Provider response bodies are streamed with a 1 MiB collection limit and cancelled on rejection.
+For **Antigravity**, enable its separate provider in Settings and select the `agy` executable (normally `~/.local/bin/agy`). It uses the CLI's existing login and structured `/usage` report; the app does not read or copy Antigravity tokens. Requires agy 1.1.11+, with 1.3.5 verified locally. Weekly/five-hour windows and Gemini/Claude+GPT groups remain separate. The source is the CLI's active login; reports do not identify the account, so those readings stay in memory and are not restored from disk. Automatic refresh is at least five minutes; one report subprocess group runs at a time and ends after each read. Timeout is 90 seconds; combined stdout/stderr collection is capped at 1 MiB. Sign in through `agy` in a terminal if needed. Refresh probes guard PATH-based browser launchers and never initiate an intentional login flow.
+
+The **Gemini CLI** row is for Gemini CLI sign-in and quota. Installing Antigravity does not establish that source; it has its own provider.
+
+For **Codex, Claude and Gemini CLI**, enable the provider in Settings after reviewing its credential path. These adapters read the existing CLI OAuth token and call only the provider's fixed usage endpoints. Providers are independent; disabling one cancels its refresh and clears its visible/cache state. Tokens are not stored in the app's settings, snapshots, CLI output or logs. Expired tokens must be renewed by their owning CLI; the app does not overwrite shared credential files. Sign-in files must be regular files owned by your user, with owner-only permissions (normally `0600`), and the selected file must not be a symlink. Unsafe permissions produce an error; the app never changes them automatically. Provider response bodies are streamed with a 1 MiB collection limit and cancelled on rejection.
 
 Subscription quota, per-chat context and API spending are different. This release tracks subscription quota and context estimates; it does not claim to track API billing.
 

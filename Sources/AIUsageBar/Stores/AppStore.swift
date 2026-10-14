@@ -47,13 +47,13 @@ import UsageCore
     private func restorePrivateState() async {
         guard !demo else { return }
         do {
-            if let prefs = try await LocalStore.shared.loadPreferences(), prefs.schemaVersion == 1 { preferences = prefs }
+            if let prefs = try await LocalStore.shared.loadPreferences(), prefs.schemaVersion == 1 {
+                preferences = prefs
+                for (id, value) in Preferences().providers where preferences.providers[id] == nil { preferences.providers[id] = value }
+            }
             if let cache = try await LocalStore.shared.loadCache(), cache.schemaVersion == 1 {
-                snapshot.providers = cache.providers.map { state in
-                    var copy = state; copy.refreshing = false
-                    copy.error = copy.snapshot == nil ? nil : "Previous reading · refresh to verify"
-                    return copy
-                }
+                let enabled = Set(ProviderID.allCases.filter { preferences.providers[$0.rawValue]?.enabled == true })
+                snapshot.providers = cache.restored(enabled: enabled)
             }
             for index in snapshot.providers.indices {
                 let enabled = preferences.providers[snapshot.providers[index].id.rawValue]?.enabled == true
@@ -117,7 +117,7 @@ import UsageCore
                 let result = try await ProviderClient().fetch(provider, credentialURL: URL(fileURLWithPath: pref.credentialPath), project: pref.project)
                 guard !Task.isCancelled, self.generations[provider, default: 0] == generation else { return }
                 self.failures[provider] = 0
-                self.update(provider) { $0.snapshot = result; $0.error = nil; $0.nextAttempt = Date().addingTimeInterval(self.preferences.refreshSeconds) }
+                self.update(provider) { $0.snapshot = result; $0.error = nil; $0.nextAttempt = Date().addingTimeInterval((provider == .antigravity ? max(300, self.preferences.refreshSeconds) : self.preferences.refreshSeconds)) }
             } catch {
                 guard !Task.isCancelled, self.generations[provider, default: 0] == generation else { return }
                 let failure = error as? ProviderFailure

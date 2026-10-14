@@ -32,12 +32,12 @@ print('Original Swift Testing macros type-check successfully.', flush=True)
 
 generated = root/'.build/portable-tests'; generated.mkdir(exist_ok=True)
 sources=[]
-for name in ['CoreTests.swift','RPCTests.swift','SecurityTests.swift','ProviderSecurityTests.swift','FixtureServer.swift']:
+for name in ['CoreTests.swift','RPCTests.swift','SecurityTests.swift','ProviderSecurityTests.swift','AntigravityTests.swift','FixtureServer.swift']:
     original = root/'Tests/UsageCoreTests'/name
     text=original.read_text().replace('import Testing\n','')
     text=re.sub(r'@Test(?:\(arguments: \[[^\]]*\]\))?\s*','',text)
     text=text.replace('#expect(', 'expect(').replace('#require(', 'requireValue(')
-    if name in {'RPCTests.swift', 'ProviderSecurityTests.swift'}:
+    if name in {'RPCTests.swift', 'ProviderSecurityTests.swift', 'AntigravityTests.swift'}:
         text=text.replace('#filePath', '"'+str(original)+'"')
     target=generated/name; target.write_text(text); sources.append(str(target))
 
@@ -69,7 +69,7 @@ func requireValue<T>(_ value: T?) throws -> T {
 @main struct Runner {
     static func main() async {
         setbuf(stdout, nil)
-        let core=CoreTests(); let rpc=RPCTests(); let security=SecurityTests(); let providers=ProviderSecurityTests()
+        let core=CoreTests(); let rpc=RPCTests(); let security=SecurityTests(); let providers=ProviderSecurityTests(); let antigravity=AntigravityTests()
         do {
             core.testCodexKeepsServerWindowDurationsAndMissingValuesUnknown()
             core.testPercentRejectsBooleansAndOutOfRange()
@@ -91,6 +91,9 @@ func requireValue<T>(_ value: T?) throws -> T {
             security.providerRedirectsNeverReceiveAuthorization()
             try providers.credentialsRejectUnsafeFilesWithoutChangingThem()
             providers.retryHeadersCannotCreateInfiniteOrUnboundedDelays()
+            try antigravity.reportsOnlyMeasuredEnabledLimits()
+            try antigravity.weeklyOnlyAndCamelCaseRemainDistinct()
+            antigravity.cacheUpgradeAddsNewProviderWithoutRestoringUnverifiedAccount()
             // Match native Swift Testing's concurrent fixture execution, even on CLT-only Macs.
             try await withThrowingTaskGroup(of: Void.self) { group in
                 for mode in ["after-ack", "before-ack", "busy"] {
@@ -105,11 +108,17 @@ func requireValue<T>(_ value: T?) throws -> T {
                         print("HTTP boundary checked: \(mode)")
                     }
                 }
+                for mode in ["success", "old", "signin", "bad-report", "environment"] {
+                    group.addTask { try await antigravity.nativeReportUsesTheConfiguredExecutable(mode: mode) }
+                }
+                for mode in ["overflow", "timeout", "cancel", "group"] {
+                    group.addTask { try await antigravity.subprocessLimitsCancellationAndGroupCleanup(mode: mode) }
+                }
                 try await group.waitForAll()
             }
         } catch { recordFailure("Unexpected test error: \(error)\n") }
         if failureCount > 0 { fputs("\(failureCount) failed assertions\n", stderr); exit(1) }
-        print("30 boundary cases passed (portable runner; same authored tests).")
+        print("42 boundary cases passed (portable runner; same authored tests).")
     }
 }
 ''')

@@ -1,17 +1,18 @@
 import Foundation
 
 public enum ProviderID: String, CaseIterable, Codable, Identifiable, Sendable {
-    case codex, claude, gemini
+    case codex, claude, gemini, antigravity
     public var id: String { rawValue }
-    public var title: String { rawValue.capitalized }
+    public var title: String { self == .gemini ? "Gemini CLI" : rawValue.capitalized }
     public var symbol: String {
-        switch self { case .codex: return "terminal"; case .claude: return "sparkle"; case .gemini: return "diamond" }
+        switch self { case .codex: return "terminal"; case .claude: return "sparkle"; case .gemini: return "diamond"; case .antigravity: return "sparkles" }
     }
     public var credentialRelativePath: String {
         switch self {
         case .codex: return ".codex/auth.json"
         case .claude: return ".claude/.credentials.json"
         case .gemini: return ".gemini/oauth_creds.json"
+        case .antigravity: return ".local/bin/agy" // Executable path; credentials remain inside agy.
         }
     }
 }

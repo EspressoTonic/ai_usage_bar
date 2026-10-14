@@ -5,7 +5,7 @@ struct ProviderCard: View {
     let state: ProviderState
     let onRefresh: (ProviderID) -> Void
     let onConfigure: () -> Void
-    private var tint: Color { state.id == .codex ? .green : state.id == .gemini ? .blue : .orange }
+    private var tint: Color { state.id == .codex ? .green : (state.id == .gemini || state.id == .antigravity) ? .blue : .orange }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -29,11 +29,12 @@ struct ProviderCard: View {
                         Text(DisplayFormat.reset(window.resetsAt)).font(.caption2).foregroundStyle(.secondary)
                     }
                 }
+                Text(reading.source).font(.caption2).foregroundStyle(.secondary)
                 Text(DisplayFormat.age(reading.capturedAt)).font(.caption2).foregroundStyle(.secondary)
             } else if state.enabled {
                 Text(state.refreshing ? "Fetching usage…" : "Waiting for a successful reading").font(.caption).foregroundStyle(.secondary)
             } else {
-                Text("Use your existing CLI sign-in.").font(.caption).foregroundStyle(.secondary)
+                Text(state.id == .antigravity ? "Use your existing Antigravity agy sign-in." : "Use your existing CLI sign-in.").font(.caption).foregroundStyle(.secondary)
             }
             if let error = state.error {
                 Label(error, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
