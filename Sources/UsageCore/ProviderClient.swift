@@ -18,10 +18,9 @@ public struct ProviderClient {
     public func fetch(_ provider: ProviderID, credentialURL: URL, project: String = "") async throws -> ProviderSnapshot {
         let raw: [String: Any]
         do {
-            let attributes = try FileManager.default.attributesOfItem(atPath: credentialURL.path)
-            guard (attributes[.size] as? Int ?? 0) <= 1_048_576 else { throw ProviderFailure(.configuration, "Credential file is unexpectedly large.") }
-            raw = try JSONSerialization.jsonObject(with: Data(contentsOf: credentialURL)) as? [String: Any] ?? [:]
-        } catch { throw ProviderFailure(.configuration, "CLI sign-in file is unavailable. Sign in with the provider's CLI first.") }
+            raw = try JSONSerialization.jsonObject(with: CredentialFile.read(credentialURL)) as? [String: Any] ?? [:]
+        } catch let failure as ProviderFailure { throw failure }
+        catch { throw ProviderFailure(.configuration, "CLI sign-in file could not be decoded. Renew it using the provider's CLI.") }
         let token: String?
         let account: String?
         var expiry: Double?
@@ -80,7 +79,8 @@ public struct ProviderClient {
             return ProviderSnapshot(id: provider, accountKey: fingerprint, source: "CLI OAuth · experimental endpoint", windows: windows)
         } catch var error as ProviderFailure {
             error.accountKey = fingerprint; throw error
-        } catch {
+        } catch is CancellationError { throw CancellationError() }
+        catch {
             throw ProviderFailure(.transport, "Network request failed. The previous reading may be stale.", accountKey: fingerprint)
         }
     }
@@ -95,19 +95,13 @@ public struct ProviderClient {
         }
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForResource = 12
-        let session = URLSession(configuration: configuration, delegate: NoRedirects(), delegateQueue: nil)
-        defer { session.invalidateAndCancel() }
-        let data: Data
-        let response: URLResponse
-        do { (data, response) = try await session.data(for: request) }
-        catch { throw ProviderFailure(.transport, "Network request failed or timed out.") }
-        guard let http = response as? HTTPURLResponse else { throw ProviderFailure(.malformed, "Invalid provider response.") }
+        let (data, http) = try await BoundedHTTP.data(for: request, configuration: configuration)
         switch http.statusCode {
         case 200..<300: break
         case 401, 403: throw ProviderFailure(.authentication, "Provider rejected this sign-in or account tier. Renew the CLI sign-in and verify access.")
         case 429:
-            let delay = http.value(forHTTPHeaderField: "Retry-After").flatMap(Double.init) ?? 120
-            throw ProviderFailure(.server, "Provider rate limited this request. Waiting before retrying.", retryAfter: max(30, delay))
+            let delay = RateLimitBackoff.delay(http.value(forHTTPHeaderField: "Retry-After"))
+            throw ProviderFailure(.server, "Provider rate limited this request. Waiting before retrying.", retryAfter: delay)
         default: throw ProviderFailure(.server, "Provider returned HTTP \(http.statusCode).")
         }
         guard data.count <= 1_048_576, let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {

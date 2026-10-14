@@ -39,7 +39,7 @@ Session discovery is limited to recent local Codex rollout files. Client labels 
 
 ## Connect a provider
 
-Enable the provider in Settings only after reviewing its credential path. This reads your existing CLI OAuth token and calls only that provider's fixed usage endpoints. Providers are independent; disabling one cancels its refresh and clears its visible/cache state. Tokens are not stored in the app's settings, snapshots, CLI output or logs. Expired tokens must be renewed by their owning CLI; the app does not overwrite shared credential files.
+Enable the provider in Settings only after reviewing its credential path. This reads your existing CLI OAuth token and calls only that provider's fixed usage endpoints. Providers are independent; disabling one cancels its refresh and clears its visible/cache state. Tokens are not stored in the app's settings, snapshots, CLI output or logs. Expired tokens must be renewed by their owning CLI; the app does not overwrite shared credential files. Sign-in files must be regular files owned by your user, with owner-only permissions (normally `0600`), and the selected file must not be a symlink. Unsafe permissions produce an error; the app never changes them automatically. Provider response bodies are streamed with a 1 MiB collection limit and cancelled on rejection.
 
 Subscription quota, per-chat context and API spending are different. This release tracks subscription quota and context estimates; it does not claim to track API billing.
 

@@ -32,3 +32,11 @@ Expanded `.gitignore` and added a redacted, limited secret guard with full-histo
 Storage tests inject disposable keys. Real Keychain access, upgrade identity and denial behavior have not yet been exercised. The development Keychain uses macOS file-based access controls; signed distribution must review the data-protection Keychain route and validate migrations. Other release gates above remain open. See [SECURITY.md](../SECURITY.md).
 
 The hardened ARM64 optimized core builds and passes bundle separation checks. Its current file payload is **2,304,259 bytes** (about 2.20 MiB); the separately packaged Touch Bar ZIP is **2,578 bytes**. These supersede the earlier size measurements for this revision. No new resident-memory measurement or normal-mode Keychain launch was performed for this checkpoint.
+
+## Credential and HTTP boundaries — 2026-10-14
+
+Replaced credential path-attribute/unbounded reads with descriptor-based no-follow/nonblocking reads. Validates regular-file type, current-user ownership, owner-only POSIX file permissions and a 1 MiB read limit; rejects pipes and unsafe files without changing them. Parent directories may keep their normal provider permissions. Replaced full-response downloads with a streamed 1 MiB body collection limit, declared-length checks and explicit cancellation. Non-success HTTP bodies are discarded, raw transport details remain redacted and numeric retry delays are finite/bounded.
+
+All **30 authored boundary cases** pass. The nine added cases cover credential file handling, malformed retry headers, and seven loopback HTTP modes: small/exact-limit success, declared/chunked overflow, redirect refusal, error-body discard and stalled-download cancellation. HTTP fixtures serve one bounded connection and close; the cancellation case waits for a server signal confirming that the response body has started. These are synthetic files and local servers, with no real provider credentials or chat mutation. Prior Keychain, live-provider and distribution gates remain open.
+
+The updated optimized ARM64 bundle passes core/add-on separation checks. Its current core file payload is **2,323,075 bytes** (about 2.22 MiB), an increase of 18,816 bytes over the previous security build. This supersedes that core size for this revision; no new memory or live Keychain measurements were taken.

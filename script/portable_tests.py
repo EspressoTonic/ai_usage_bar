@@ -12,12 +12,12 @@ subprocess.run(['swift', 'build'], cwd=root, check=True)
 binary_dir = Path(subprocess.check_output(['swift','build','--show-bin-path'], cwd=root, text=True).strip())
 generated = root/'.build/portable-tests'; generated.mkdir(exist_ok=True)
 sources=[]
-for name in ['CoreTests.swift','RPCTests.swift','SecurityTests.swift']:
+for name in ['CoreTests.swift','RPCTests.swift','SecurityTests.swift','ProviderSecurityTests.swift']:
     original = root/'Tests/UsageCoreTests'/name
     text=original.read_text().replace('import Testing\n','')
     text=re.sub(r'@Test(?:\(arguments: \[[^\]]*\]\))?\s*','',text)
     text=text.replace('#expect(', 'expect(').replace('#require(', 'requireValue(')
-    if name == 'RPCTests.swift':
+    if name in {'RPCTests.swift', 'ProviderSecurityTests.swift'}:
         text=text.replace('#filePath', '"'+str(original)+'"')
     target=generated/name; target.write_text(text); sources.append(str(target))
 
@@ -43,7 +43,8 @@ func requireValue<T>(_ value: T?) throws -> T {
 
 @main struct Runner {
     static func main() async {
-        let core=CoreTests(); let rpc=RPCTests(); let security=SecurityTests()
+        setbuf(stdout, nil)
+        let core=CoreTests(); let rpc=RPCTests(); let security=SecurityTests(); let providers=ProviderSecurityTests()
         do {
             core.testCodexKeepsServerWindowDurationsAndMissingValuesUnknown()
             core.testPercentRejectsBooleansAndOutOfRange()
@@ -67,9 +68,16 @@ func requireValue<T>(_ value: T?) throws -> T {
             try security.bridgePrivacyRequiresExplicitChatAccess()
             try security.capturedTargetsExpireAndRejectFutureTimestamps()
             security.providerRedirectsNeverReceiveAuthorization()
+            try providers.credentialsRejectUnsafeFilesWithoutChangingThem()
+            providers.retryHeadersCannotCreateInfiniteOrUnboundedDelays()
+            for mode in ["small", "exact-limit", "declared-limit", "stream-limit", "redirect", "auth-error", "cancel"] {
+                print("HTTP boundary starting: \(mode)")
+                try await providers.streamedResponsesAreBoundedAndCancellable(mode: mode)
+                print("HTTP boundary checked: \(mode)")
+            }
         } catch { failureCount += 1; fputs("Unexpected test error: \(error)\n", stderr) }
         if failureCount > 0 { fputs("\(failureCount) failed assertions\n", stderr); exit(1) }
-        print("21 boundary cases passed (portable runner; same authored tests).")
+        print("30 boundary cases passed (portable runner; same authored tests).")
     }
 }
 ''')
