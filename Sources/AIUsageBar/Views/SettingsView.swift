@@ -7,9 +7,10 @@ struct SettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Connections & preferences").font(.title2).fontWeight(.semibold)
-            Text("Providers are off until enabled. Antigravity uses its agy usage command; other providers read their existing CLI sign-in file.")
+            Text("Sources stay off until enabled. Native Codex sources support named local or SSH account homes.")
                 .font(.caption).foregroundStyle(.secondary)
             Form {
+                QuotaPreferencesSections(store: store)
                 Section("Provider usage") {
                     ForEach(ProviderID.allCases) { provider in
                         VStack(alignment: .leading, spacing: 6) {

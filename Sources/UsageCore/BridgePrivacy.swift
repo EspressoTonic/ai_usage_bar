@@ -10,7 +10,11 @@ public enum BridgePrivacy {
     public static func snapshot(_ value: AppSnapshot, allowChatAccess: Bool) -> AppSnapshot {
         var copy = value
         // Fingerprints are pseudonymous account metadata, not public identifiers.
-        for index in copy.providers.indices { copy.providers[index].snapshot?.accountKey = "redacted" }
+        for index in copy.providers.indices {
+            copy.providers[index].snapshot?.accountKey = "redacted"
+            copy.providers[index].snapshot?.identity = nil
+        }
+        copy.codexProfiles = nil // Labels, source bindings and account details never leave through the bridge.
         if !allowChatAccess {
             copy.sessions = []; copy.selectedChatID = nil; copy.selectionRevision = 0; copy.operation = nil
         }

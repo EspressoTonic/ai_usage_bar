@@ -19,7 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         MenuBarExtra {
             QuotaPopoverView(store: store)
         } label: {
-            LaunchIcon()
+            LaunchIcon(store: store)
         }
         .menuBarExtraStyle(.window)
         Window("AI Usage Bar", id: "dashboard") {
@@ -36,11 +36,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 private struct LaunchIcon: View {
+    @ObservedObject var store: AppStore
     @Environment(\.openWindow) private var openWindow
     @State private var previewOpened = false
     var body: some View {
-        Image(systemName: "chart.bar.xaxis")
-            .accessibilityLabel("AI Usage Bar")
+        HStack(spacing: 3) {
+            Image(systemName: "chart.bar.xaxis")
+            if let text = store.menuQuotaText { Text(text).monospacedDigit() }
+        }
+            .help(store.menuQuotaHelp)
+            .accessibilityLabel(store.menuQuotaHelp + ". " + (store.menuQuotaText ?? "AI Usage Bar"))
             .onAppear {
                 let arguments = ProcessInfo.processInfo.arguments
                 if !previewOpened && (arguments.contains("--preview") || arguments.contains("--preview-quota")) {

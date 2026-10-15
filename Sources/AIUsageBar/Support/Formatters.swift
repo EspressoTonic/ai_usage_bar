@@ -11,6 +11,12 @@ enum DisplayFormat {
         if seconds < 3600 { return "Checked \(seconds / 60)m ago" }
         return "Checked \(seconds / 3600)h ago"
     }
+    static func interval(to date: Date) -> String {
+        let minutes = max(1, Int(date.timeIntervalSinceNow / 60))
+        if minutes < 60 { return "\(minutes)m" }
+        if minutes < 1440 { return "\(minutes / 60)h \(minutes % 60)m" }
+        return "\(minutes / 1440)d \((minutes % 1440) / 60)h"
+    }
     static func reset(_ date: Date?) -> String {
         guard let date else { return "Reset time unavailable" }
         let minutes = Int(date.timeIntervalSinceNow / 60)

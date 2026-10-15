@@ -32,12 +32,12 @@ print('Original Swift Testing macros type-check successfully.', flush=True)
 
 generated = root/'.build/portable-tests'; generated.mkdir(exist_ok=True)
 sources=[]
-for name in ['CoreTests.swift','RPCTests.swift','SecurityTests.swift','ProviderSecurityTests.swift','AntigravityTests.swift','FixtureServer.swift']:
+for name in ['CoreTests.swift','RPCTests.swift','SecurityTests.swift','ProviderSecurityTests.swift','AntigravityTests.swift','QuotaDetailsTests.swift','FixtureServer.swift']:
     original = root/'Tests/UsageCoreTests'/name
     text=original.read_text().replace('import Testing\n','')
     text=re.sub(r'@Test(?:\(arguments: \[[^\]]*\]\))?\s*','',text)
     text=text.replace('#expect(', 'expect(').replace('#require(', 'requireValue(')
-    if name in {'RPCTests.swift', 'ProviderSecurityTests.swift', 'AntigravityTests.swift'}:
+    if name in {'RPCTests.swift', 'ProviderSecurityTests.swift', 'AntigravityTests.swift', 'QuotaDetailsTests.swift'}:
         text=text.replace('#filePath', '"'+str(original)+'"')
     target=generated/name; target.write_text(text); sources.append(str(target))
 
@@ -69,7 +69,7 @@ func requireValue<T>(_ value: T?) throws -> T {
 @main struct Runner {
     static func main() async {
         setbuf(stdout, nil)
-        let core=CoreTests(); let rpc=RPCTests(); let security=SecurityTests(); let providers=ProviderSecurityTests(); let antigravity=AntigravityTests()
+        let core=CoreTests(); let rpc=RPCTests(); let security=SecurityTests(); let providers=ProviderSecurityTests(); let antigravity=AntigravityTests(); let details=QuotaDetailsTests()
         do {
             core.testCodexKeepsServerWindowDurationsAndMissingValuesUnknown()
             core.testPercentRejectsBooleansAndOutOfRange()
@@ -94,6 +94,15 @@ func requireValue<T>(_ value: T?) throws -> T {
             try antigravity.reportsOnlyMeasuredEnabledLimits()
             try antigravity.weeklyOnlyAndCamelCaseRemainDistinct()
             antigravity.cacheUpgradeAddsNewProviderWithoutRestoringUnverifiedAccount()
+            details.paceRequiresFreshKnownWindowAndSuppressesEarlyOrInvalidData()
+            details.historyIsBoundedAndNeverCombinesAccountsOrResetCycles()
+            details.alertsAreSilentInitiallyDeduplicateAndRequireObservedTransitions()
+            details.menuQuotaNeverUsesDisabledStaleOrUnrelatedWindows()
+            try details.nativeParserPrefersBucketsPreservesUnknownsAndCredits()
+            try details.profileConfigurationRejectsOptionsAndQuotesRemotePaths()
+            try details.metadataRedactionAndOldSnapshotDecodingRemainCompatible()
+            try await details.remoteCommandTreatsShellSyntaxAsLiteralPaths()
+            try await details.nativeSourceRejectsSymlinkHomesAndOtherWritableParents()
             // Match native Swift Testing's concurrent fixture execution, even on CLT-only Macs.
             try await withThrowingTaskGroup(of: Void.self) { group in
                 for mode in ["after-ack", "before-ack", "busy"] {
@@ -114,11 +123,17 @@ func requireValue<T>(_ value: T?) throws -> T {
                 for mode in ["overflow", "timeout", "cancel", "group"] {
                     group.addTask { try await antigravity.subprocessLimitsCancellationAndGroupCleanup(mode: mode) }
                 }
+                for mode in ["success", "missing-identity", "rotation", "signed-out", "bad-json", "error", "wrong-id", "overflow", "group"] {
+                    group.addTask { try await details.nativeReaderUsesReadOnlyHandshakeAndCleansUp(mode: mode) }
+                }
+                for mode in ["timeout", "cancel"] {
+                    group.addTask { try await details.nativeDialogueHonorsDeadlineAndCancellation(mode: mode) }
+                }
                 try await group.waitForAll()
             }
         } catch { recordFailure("Unexpected test error: \(error)\n") }
         if failureCount > 0 { fputs("\(failureCount) failed assertions\n", stderr); exit(1) }
-        print("42 boundary cases passed (portable runner; same authored tests).")
+        print("62 boundary cases passed (portable runner; same authored tests).")
     }
 }
 ''')

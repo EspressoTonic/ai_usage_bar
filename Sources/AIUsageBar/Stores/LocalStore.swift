@@ -16,6 +16,8 @@ actor LocalStore {
     func loadCache() throws -> QuotaCache? {
         try files.load(QuotaCache.self, name: "quota-cache.sealed", legacyName: "snapshot.json")
     }
+    func loadHistory() throws -> QuotaHistory? { try files.load(QuotaHistory.self, name: "quota-history.sealed") }
+    func saveHistory(_ value: QuotaHistory) throws { try files.save(value, name: "quota-history.sealed") }
     func savePreferences(_ value: Preferences) throws { try files.save(value, name: "preferences.sealed") }
     func saveCache(_ value: QuotaCache) throws { try files.save(value, name: "quota-cache.sealed") }
 }

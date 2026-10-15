@@ -36,6 +36,9 @@ public struct ProviderSnapshot: Codable, Equatable, Sendable, Identifiable {
     public var source: String
     public var capturedAt: Date
     public var windows: [QuotaWindow]
+    public var identity: AccountIdentity?
+    public var credits: [QuotaCredits]?
+    public var identityVerified: Bool?
     public init(id: ProviderID, accountKey: String, source: String, capturedAt: Date = Date(), windows: [QuotaWindow]) {
         self.id = id; self.accountKey = accountKey; self.source = source
         self.capturedAt = capturedAt; self.windows = windows
@@ -116,6 +119,7 @@ public struct AppSnapshot: Codable, Equatable, Sendable {
     public var schemaVersion = 1
     public var demo = false
     public var providers: [ProviderState] = ProviderID.allCases.map { ProviderState(id: $0) }
+    public var codexProfiles: [CodexProfileState]?
     public var sessions: [ChatSession] = []
     public var selectedChatID: String?
     public var selectionRevision = 0

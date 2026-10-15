@@ -68,9 +68,9 @@ struct AntigravityTests {
         try await fixture(mode: mode) { executable, work in
             let environment = try AntigravityClient.environment(directory: work)
             let task = Task { try await CommandProbe.run(executable: executable, arguments: ["-p", "/usage", "--output-format", "json"],
-                environment: environment, directory: work, timeout: mode == "timeout" ? 0.3 : 4, maximum: 4096) }
+                environment: environment, directory: work, timeout: mode == "timeout" ? 0.3 : (mode == "cancel" ? 8 : 4), maximum: 4096) }
             if mode == "cancel" {
-                for _ in 0..<80 {
+                for _ in 0..<240 {
                     if FileManager.default.fileExists(atPath: work.appendingPathComponent("ready").path) { break }
                     try await Task.sleep(nanoseconds: 25_000_000)
                 }

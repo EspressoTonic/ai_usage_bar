@@ -30,10 +30,11 @@ The app is intentionally menu-bar-only (no Dock icon). Click the chart icon to o
 | --- | --- |
 | Native menu-bar UI and settings | Implemented; live-provider connections start disabled |
 | CPU/RAM and memory-pressure sampling | Implemented with slower background/Low Power sampling |
-| Codex quota | Experimental CLI OAuth adapter; fixtures tested; live account validation pending |
+| Codex quota & accounts | Existing OAuth adapter plus optional named local/SSH CODEX_HOME sources using native app-server quota reads; synthetic protocol coverage, new native live validation pending |
 | Antigravity quota | Native `agy -p /usage --output-format json`; separate groups/windows; live verified with agy 1.3.5 |
 | Gemini CLI quota | Experimental OAuth adapter, model buckets and unsupported-tier state; live validation pending |
 | Claude quota | Experimental `.credentials.json` OAuth adapter; Keychain-only sign-in not supported yet |
+| Quota details | Account/plan and credits when reported, optional menu percentage and pace estimates; opt-in encrypted quota history and low/reset notifications |
 | Local Codex context | Opt-in, bounded recent rollout metadata; last-turn estimate, not an exact live working-set measurement |
 | Desktop/CLI native compaction | Opt-in existing local WebSocket app-server connection; exact ID/revision and idle checks; completion event required |
 | Touch Bar | Separate BTT preset and CLI bridge; physical hardware/import validation pending |
@@ -51,6 +52,22 @@ For **Codex, Claude and Gemini CLI**, enable the provider in Settings after revi
 Subscription quota, per-chat context and API spending are different. This release tracks subscription quota and context estimates; it does not claim to track API billing.
 
 Google currently has conflicting documentation about consumer Gemini CLI Google-login access. The adapter reports unsupported/missing quota honestly. Check your actual tier and CLI version; no Antigravity data is silently relabeled as Gemini CLI quota. See [Google's notice](https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals).
+
+## Named Codex accounts and quota details
+
+In Settings, **Add Codex source…** to label a personal/work account home. Choose **This Mac** with absolute CODEX_HOME and Codex executable paths, or **SSH server** with an existing SSH config alias and absolute paths on that server. Up to eight sources are supported and each starts disabled. Enable a source after reviewing its configuration. Existing `codex-account` profiles can supply their account-home paths; this app does not switch or log in to those accounts.
+
+The native reader starts a temporary stdio app-server, initializes it, reads account → rate limits → account, then stops its owned process group. It sends no thread, login/logout or credit-redemption commands. Codex handles its own authentication/keyring and normal native refresh. Sources poll serially, at least every two minutes, with a 30-second read deadline and 1 MiB combined output cap. SSH is noninteractive: pre-existing authentication and a known host key are required; no password prompt or automatic host-key acceptance. SSH forwarding, local commands and connection multiplexing are disabled for these reads. Local home/executable permissions are checked; remote path ownership and behavior still require live validation. Native integrations that deliberately detach are outside local process-group cleanup.
+
+Account email, plan, workspace name, balances and limit-reset-credit counts appear only when returned. An alias such as “Work” is your label, not verified workspace metadata. Some Codex versions omit the quota account ID; these sources show identity unavailable and skip account-dependent history/alerts. The before/after account check detects reported identity changes; it cannot prove a workspace stayed constant when the native account response omits it. Native local/SSH compatibility has synthetic coverage; live validation is pending.
+
+After a successful reading, **Menu bar percentage** lets you select one source and one limit. `C`, `Cl`, `G`, `A` identify Codex, Claude, Gemini CLI and Antigravity; hover reveals the selected source/window. Stale, failed, disabled or missing readings show a dash. **Show window-average pace estimates** projects usage linearly from the provider's explicit duration/reset; estimates are hidden for stale, invalid or very early windows. Future activity can change the result.
+
+**Keep encrypted quota history** is off by default. It retains at most 1,000 changed quota points across sources for seven days, pruning on load and while running; disabling clears saved history. Dashboard charts show only the current account/reset window. No transcripts, token/cost analytics or raw CLI reports are stored. Antigravity reports lack stable account identity and remain excluded. History and new account/profile metadata are excluded from the CLI/Touch Bar bridge.
+
+Notifications are off by default. Enabling them in Settings requests macOS permission. The first successful poll establishes a silent baseline; later threshold crossings and optional observed resets can notify. Notifications omit account emails, source labels and quota values. They depend on successful polling and are not instant/offline reset alarms. Actual OS delivery remains a live validation gate.
+
+Native protocol reference: [OpenAI app-server account and rate-limit APIs](https://learn.chatgpt.com/docs/app-server).
 
 ## Native compaction
 
@@ -73,7 +90,7 @@ dist/AIUsageBar.app/Contents/Helpers/usagebar status
 
 The app owns one collector. The CLI and Touch Bar do not fetch credentials or provider usage. The bridge is a private same-user Unix socket with bounded messages, a versioned protocol, allowlisted commands, and target/revision checks. Default snapshots omit chats and redact account fingerprints. External chat access and compaction require a Settings permission that resets each launch. While enabled, any process running as your user can use that chat bridge. Treat its output and display labels as private.
 
-Preferences and a quota-only cache are AES-GCM encrypted under `~/Library/Application Support/AIUsageBar/`, with a separate app-owned macOS Keychain key. Chat metadata and operations stay in memory. Old app-owned plaintext files migrate only after successful encryption. No plaintext fallback is used. The temporary bridge directory is `/private/tmp/ai-usage-bar-<uid>/` with owner-only permissions; captured action targets expire after 30 seconds and are consumed before use. See [security and privacy rules](SECURITY.md) for Git exclusions, Keychain limitations and release gates.
+Preferences, a quota-only cache and optional quota history are AES-GCM encrypted under `~/Library/Application Support/AIUsageBar/`, with a separate app-owned macOS Keychain key. Chat metadata and operations stay in memory. Old app-owned plaintext files migrate only after successful encryption. No plaintext fallback is used. The temporary bridge directory is `/private/tmp/ai-usage-bar-<uid>/` with owner-only permissions; captured action targets expire after 30 seconds and are consumed before use. See [security and privacy rules](SECURITY.md) for Git exclusions, Keychain limitations and release gates.
 
 ## Package and checks
 

@@ -32,9 +32,18 @@ struct DashboardView: View {
                     case "chats": ContextView(store: store)
                     case "system": SystemView(metrics: store.snapshot.metrics, enabled: store.preferences.monitorSystem || store.demo)
                     default:
-                        ForEach(store.snapshot.providers) { ProviderCard(state: $0, onRefresh: { store.refresh($0) }, onConfigure: {
-                            openWindow(id: "settings"); NSApp.activate(ignoringOtherApps: true)
-                        }) }
+                        ForEach(store.snapshot.providers) { state in
+                            ProviderCard(state: state, onRefresh: { store.refresh($0) }, onConfigure: {
+                                openWindow(id: "settings"); NSApp.activate(ignoringOtherApps: true)
+                            }, showPace: store.preferences.showPace == true,
+                               history: store.preferences.keepHistory == true ? store.history : nil, sourceID: state.id.rawValue)
+                        }
+                        ForEach(store.profileStates) { profile in
+                            ProviderCard(state: profile.state, onRefresh: { _ in store.refreshProfile(profile.id) }, onConfigure: {
+                                openWindow(id: "settings"); NSApp.activate(ignoringOtherApps: true)
+                            }, title: "Codex · " + profile.label, showPace: store.preferences.showPace == true,
+                               history: store.preferences.keepHistory == true ? store.history : nil, sourceID: profile.id)
+                        }
                     }
                     if let notice = store.notice {
                         HStack(alignment: .top) {

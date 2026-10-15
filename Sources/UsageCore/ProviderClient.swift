@@ -81,7 +81,13 @@ public struct ProviderClient {
                 windows = QuotaParser.gemini(json)
             }
             guard !windows.isEmpty else { throw ProviderFailure(.malformed, "No supported quota measurements in the response. Nothing has been assumed to be zero.") }
-            return ProviderSnapshot(id: provider, accountKey: fingerprint, source: "CLI OAuth · experimental endpoint", windows: windows)
+            var reading = ProviderSnapshot(id: provider, accountKey: fingerprint, source: "CLI OAuth · experimental endpoint", windows: windows)
+            reading.identityVerified = account != nil
+            if provider == .codex {
+                reading.identity = AccountIdentity(plan: QuotaDetails.text(json["plan_type"]))
+                if let value = QuotaDetails.credits(json["credits"] as? [String: Any] ?? [:], id: "codex", label: "Codex") { reading.credits = [value] }
+            }
+            return reading
         } catch var error as ProviderFailure {
             error.accountKey = fingerprint; throw error
         } catch is CancellationError { throw CancellationError() }

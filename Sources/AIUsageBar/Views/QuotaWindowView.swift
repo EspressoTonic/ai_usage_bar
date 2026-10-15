@@ -5,6 +5,19 @@ struct QuotaWindowView: View {
     let window: QuotaWindow
     let tint: Color
     var muted = false
+    var capturedAt: Date? = nil
+    var showPace = false
+    private var pace: QuotaPace? {
+        guard showPace, !muted, let capturedAt else { return nil }
+        return QuotaPace.estimate(window: window, capturedAt: capturedAt)
+    }
+    private var paceText: String? {
+        guard let pace else { return nil }
+        if let exhaustion = pace.exhaustionAt, exhaustion > Date() {
+            return "Pace estimate: may run out in " + DisplayFormat.interval(to: exhaustion)
+        }
+        return "Pace estimate: \(Int(pace.projectedUsedPercent.rounded()))% used by reset"
+    }
 
     private var remaining: Double { min(100, max(0, window.remainingPercent)) }
     private var percentage: Int { Int(remaining.rounded()) }
@@ -41,11 +54,16 @@ struct QuotaWindowView: View {
                 Text(DisplayFormat.reset(window.resetsAt))
                     .font(.caption2).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                if let paceText {
+                    Text(paceText).font(.caption2).foregroundStyle(pace?.aheadOfTime == true ? Color.orange : Color.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .help("Linear estimate from usage since the reported window began. Your future pace can change.")
+                }
             }
             Spacer(minLength: 0)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(window.label)
-        .accessibilityValue("\(percentage) percent remaining. \(DisplayFormat.reset(window.resetsAt))")
+        .accessibilityValue("\(percentage) percent remaining. \(DisplayFormat.reset(window.resetsAt)). \(paceText ?? "")")
     }
 }

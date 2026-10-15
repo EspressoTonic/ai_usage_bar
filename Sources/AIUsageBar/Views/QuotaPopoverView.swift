@@ -42,7 +42,7 @@ struct QuotaPopoverView: View {
                     .padding(.horizontal, 16).padding(.bottom, 12)
             }
 
-            if enabledProviders.isEmpty {
+            if enabledProviders.isEmpty && store.profileStates.allSatisfy({ !$0.state.enabled }) {
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Connect a provider", systemImage: "terminal")
                         .font(.headline)
@@ -58,7 +58,14 @@ struct QuotaPopoverView: View {
                     VStack(spacing: 12) {
                         ForEach(enabledProviders) { state in
                             ProviderCard(state: state, onRefresh: { store.refresh($0) },
-                                         onConfigure: { showWindow("settings") })
+                                         onConfigure: { showWindow("settings") }, showPace: store.preferences.showPace == true,
+                                         sourceID: state.id.rawValue)
+                        }
+                        ForEach(store.profileStates.filter { $0.state.enabled }) { profile in
+                            ProviderCard(state: profile.state, onRefresh: { _ in store.refreshProfile(profile.id) },
+                                         onConfigure: { showWindow("settings") }, title: "Codex · " + profile.label,
+                                         showPace: store.preferences.showPace == true,
+                                         sourceID: profile.id)
                         }
                     }
                     .padding(.horizontal, 16).padding(.bottom, 16)
