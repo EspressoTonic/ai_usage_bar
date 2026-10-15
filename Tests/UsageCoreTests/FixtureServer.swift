@@ -55,3 +55,25 @@ final class FixtureServer: @unchecked Sendable {
         }
     }
 }
+
+
+/// The app can run one named Codex probe plus one Antigravity probe. Bound
+/// synthetic native processes the same way while HTTP/RPC tests remain parallel.
+actor FixtureProcessBudget {
+    static let shared = FixtureProcessBudget()
+    private var available = 2
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private func acquire() async {
+        if available > 0 { available -= 1; return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+    private func release() {
+        if !waiters.isEmpty { waiters.removeFirst().resume() }
+        else { available += 1 }
+    }
+    func run<T>(_ body: () async throws -> T) async rethrows -> T {
+        await acquire()
+        do { let value = try await body(); release(); return value }
+        catch { release(); throw error }
+    }
+}

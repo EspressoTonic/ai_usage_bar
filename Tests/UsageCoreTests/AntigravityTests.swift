@@ -94,12 +94,14 @@ struct AntigravityTests {
         }
     }
     private func fixture<T>(mode: String, _ action: (URL, URL) async throws -> T) async throws -> T {
-        let work = URL(fileURLWithPath: "/private/tmp").appendingPathComponent("aiub-agy-test-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: work, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
-        defer { try? FileManager.default.removeItem(at: work) }
-        let script = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Fixtures/agy_fixture.py")
-        let executable = work.appendingPathComponent("agy-" + mode)
-        try FileManager.default.copyItem(at: script, to: executable); chmod(executable.path, 0o700)
-        return try await action(executable, work)
+        try await FixtureProcessBudget.shared.run {
+            let work = URL(fileURLWithPath: "/private/tmp").appendingPathComponent("aiub-agy-test-" + UUID().uuidString)
+            try FileManager.default.createDirectory(at: work, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+            defer { try? FileManager.default.removeItem(at: work) }
+            let script = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Fixtures/agy_fixture.py")
+            let executable = work.appendingPathComponent("agy-" + mode)
+            try FileManager.default.copyItem(at: script, to: executable); chmod(executable.path, 0o700)
+            return try await action(executable, work)
+        }
     }
 }

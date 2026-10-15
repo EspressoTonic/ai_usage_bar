@@ -195,14 +195,16 @@ struct QuotaDetailsTests {
         }
     }
     private func fixture<T>(mode: String, _ action: (CodexProfile, URL) async throws -> T) async throws -> T {
-        let root = URL(fileURLWithPath: "/private/tmp").appendingPathComponent("aiub-codex-test-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
-        defer { try? FileManager.default.removeItem(at: root) }
-        let home = root.appendingPathComponent("home")
-        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
-        let script = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Fixtures/codex_quota_fixture.py")
-        let executable = root.appendingPathComponent("codex-" + mode)
-        try FileManager.default.copyItem(at: script, to: executable); chmod(executable.path, 0o700)
-        return try await action(CodexProfile(label: "Fixture", home: home.path, executable: executable.path), root)
+        try await FixtureProcessBudget.shared.run {
+            let root = URL(fileURLWithPath: "/private/tmp").appendingPathComponent("aiub-codex-test-" + UUID().uuidString)
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+            defer { try? FileManager.default.removeItem(at: root) }
+            let home = root.appendingPathComponent("home")
+            try FileManager.default.createDirectory(at: home, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+            let script = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Fixtures/codex_quota_fixture.py")
+            let executable = root.appendingPathComponent("codex-" + mode)
+            try FileManager.default.copyItem(at: script, to: executable); chmod(executable.path, 0o700)
+            return try await action(CodexProfile(label: "Fixture", home: home.path, executable: executable.path), root)
+        }
     }
 }
