@@ -19,15 +19,7 @@ struct ProviderCard: View {
             }
             if let reading = state.snapshot {
                 ForEach(reading.windows) { window in
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack {
-                            Text(window.label).font(.subheadline).lineLimit(1)
-                            Spacer()
-                            Text("\(Int(window.remainingPercent.rounded()))% left").font(.subheadline.monospacedDigit()).fontWeight(.semibold)
-                        }
-                        ProgressView(value: window.remainingPercent, total: 100).tint(state.error == nil ? tint : .secondary)
-                        Text(DisplayFormat.reset(window.resetsAt)).font(.caption2).foregroundStyle(.secondary)
-                    }
+                    QuotaWindowView(window: window, tint: tint, muted: state.error != nil)
                 }
                 Text(reading.source).font(.caption2).foregroundStyle(.secondary)
                 Text(DisplayFormat.age(reading.capturedAt)).font(.caption2).foregroundStyle(.secondary)

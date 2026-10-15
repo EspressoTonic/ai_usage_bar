@@ -17,13 +17,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     var body: some Scene {
         MenuBarExtra {
-            DashboardView(store: store)
+            QuotaPopoverView(store: store)
         } label: {
             LaunchIcon()
         }
         .menuBarExtraStyle(.window)
         Window("AI Usage Bar", id: "dashboard") {
-            DashboardView(store: store)
+            if store.demo && ProcessInfo.processInfo.arguments.contains("--preview-quota") {
+                QuotaPopoverView(store: store)
+            } else {
+                DashboardView(store: store)
+            }
         }.windowResizability(.contentSize)
         Window("AI Usage Bar Settings", id: "settings") {
             SettingsView(store: store)
@@ -38,7 +42,8 @@ private struct LaunchIcon: View {
         Image(systemName: "chart.bar.xaxis")
             .accessibilityLabel("AI Usage Bar")
             .onAppear {
-                if !previewOpened && ProcessInfo.processInfo.arguments.contains("--preview") {
+                let arguments = ProcessInfo.processInfo.arguments
+                if !previewOpened && (arguments.contains("--preview") || arguments.contains("--preview-quota")) {
                     previewOpened = true
                     openWindow(id: "dashboard")
                     NSApp.activate(ignoringOtherApps: true)
