@@ -7,9 +7,11 @@ case "$CONFIG" in debug|release) ;; *) echo "usage: $0 [debug|release]" >&2; exi
 swift build -c "$CONFIG"
 BIN_DIR="$(swift build -c "$CONFIG" --show-bin-path)"
 APP_BUNDLE="$ROOT_DIR/dist/AIUsageBar.app"
-mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Helpers"
+mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Helpers" "$APP_BUNDLE/Contents/Resources"
 cp "$BIN_DIR/AIUsageBar" "$APP_BUNDLE/Contents/MacOS/AIUsageBar"
 cp "$BIN_DIR/usagebar" "$APP_BUNDLE/Contents/Helpers/usagebar"
+cp "$ROOT_DIR/LICENSE" "$APP_BUNDLE/Contents/Resources/LICENSE"
+cp "$ROOT_DIR/THIRD_PARTY_NOTICES.md" "$APP_BUNDLE/Contents/Resources/THIRD_PARTY_NOTICES.md"
 cat > "$APP_BUNDLE/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

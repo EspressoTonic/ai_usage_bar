@@ -15,4 +15,9 @@ assert info['CFBundlePackageType'] == 'APPL'
 assert info['LSUIElement'] is True
 assert (bundle / 'Contents/MacOS/AIUsageBar').is_file()
 assert (bundle / 'Contents/Helpers/usagebar').is_file()
-print('Core bundle verified: no Touch Bar presets/assets/frameworks.')
+root = Path(__file__).resolve().parent.parent
+for name in ('LICENSE', 'THIRD_PARTY_NOTICES.md'):
+    notice = bundle / 'Contents/Resources' / name
+    assert notice.is_file(), f'Missing packaged notice: {name}'
+    assert notice.read_bytes() == (root / name).read_bytes(), f'Packaged notice differs from source: {name}'
+print('Core bundle verified: no Touch Bar presets/assets/frameworks; license/notices included.')

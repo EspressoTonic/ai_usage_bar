@@ -16,3 +16,8 @@ If you already have other BTT presets, import only these items; never replace yo
 Developer fallback: create a BTT **Shell Script widget**, run the bundled `usagebar render --capture touchbar` command, set a 15-second interval, and assign **Execute Shell Script / Task** to `usagebar compact-captured touchbar`. Full executable paths are required. No Node, Python, jq or provider credentials are needed by the widget at runtime.
 
 References: [widgets](https://docs.folivora.ai/docs/touch-bar/widgets/), [trigger definitions](https://docs.folivora.ai/docs/json/trigger-definitions/), [shell actions](https://docs.folivora.ai/docs/actions/action-definitions/).
+
+
+## License
+
+The preset and its project-authored documentation are [MIT licensed](LICENSE). This standalone archive includes that license and [notices](NOTICE.md). BetterTouchTool is external and requires its own applicable [vendor license](https://folivora.ai/buy/); it is not included or relicensed by this add-on.
