@@ -58,6 +58,7 @@ read('account/rateLimits/read', 3)
 limits = {'accountId': 'synthetic-workspace', 'rateLimitsByLimitId': {'codex': {
     'limitId': 'codex', 'primary': {'usedPercent': 27, 'windowDurationMins': 300, 'resetsAt': int(time.time()) + 7200},
     'credits': {'balance': '12.5', 'unlimited': False, 'hasCredits': True}}}}
+limits['rateLimitResetCredits'] = {'availableCount': 2, 'credits': [{'id': 'synthetic-reset-do-not-redeem'}]}
 if mode == 'missing-identity':
     limits.pop('accountId')
 send(3, limits)

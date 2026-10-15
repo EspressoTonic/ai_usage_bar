@@ -9,6 +9,7 @@ Native macOS Swift package. The product name remains provisional.
 - One collector owns all fetching; the CLI and optional Touch Bar adapter only consume the bridge.
 - Keep `addons/` out of the main app dependency graph and bundle. Run the packaging verifier.
 - Recheck exact chat identity, selection revision, idle state and capability before compaction; acknowledgement is not completion.
+- Banked Codex resets are display-only. Never consume/redeem a reset, add a spending control or use a real reset during verification.
 - No credentials, transcript text or bearer tokens in output/logs/test fixtures. Sanitize fixtures.
 - Never conflate cumulative tokens, current context and subscription quota.
 - Preserve user changes. Do not publish releases or replace installed provider credentials as part of local verification.

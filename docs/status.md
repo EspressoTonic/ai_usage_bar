@@ -82,3 +82,12 @@ Optimized ARM64 core file payload for this slice is **3,790,675 bytes** (about 3
 
 
 The first hosted run for this slice exposed aggregate fixture load: native account tests passed, while two existing Antigravity fixtures exceeded the unchanged three-second version-probe deadline when all fake CLIs started together. Added a shared two-process permit around native fixtures, matching the app's maximum one named Codex plus one Antigravity probe. HTTP/RPC cases remain parallel, and production deadlines/assertions are retained. Hosted revalidation follows this test-only correction.
+
+
+## Reset countdowns and display-only banked resets — 2026-10-15
+
+At the owner's explicit request, reset countdowns of at least 24 hours now use days/hours. Codex cards label the earned-reset inventory **Banked resets · Display only**. The existing native account source already parsed the count; the default OAuth source now also performs a fixed GET-only inventory read. A missing/unsupported inventory shows unavailable, without replacing successful quota windows with an error or guessing zero. Only the authoritative available count enters the model; inventory IDs/details are discarded.
+
+The owner expressly prohibits using banked resets. Added that requirement to AGENTS.md, kept the UI text-only, and made the Codex quota HTTP/RPC request builders typed allowlists with no spending/redemption route. New synthetic checks assert GET-only endpoint/method sets, count-only retention, valid zero versus unknown/invalid values, one inventory GET without sending IDs, optional-read failure and cancellation. Native protocol fixtures also return an invented banked count and continue rejecting any unexpected method. No live reset is consumed during implementation or verification.
+
+All **67 authored boundary cases** pass locally, including original Swift Testing macro compilation. Optimized ARM64 packaging/launch and native demo accessibility/screenshot review confirm day/hour countdowns, the available banked count, the unavailable state and the display-only label. These UI samples use invented accounts/counts. The core bundle verifier still excludes Touch Bar assets.

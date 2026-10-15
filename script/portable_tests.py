@@ -32,7 +32,7 @@ print('Original Swift Testing macros type-check successfully.', flush=True)
 
 generated = root/'.build/portable-tests'; generated.mkdir(exist_ok=True)
 sources=[]
-for name in ['CoreTests.swift','RPCTests.swift','SecurityTests.swift','ProviderSecurityTests.swift','AntigravityTests.swift','QuotaDetailsTests.swift','FixtureServer.swift']:
+for name in ['CoreTests.swift','RPCTests.swift','SecurityTests.swift','ProviderSecurityTests.swift','AntigravityTests.swift','QuotaDetailsTests.swift','BankedResetTests.swift','FixtureServer.swift']:
     original = root/'Tests/UsageCoreTests'/name
     text=original.read_text().replace('import Testing\n','')
     text=re.sub(r'@Test(?:\(arguments: \[[^\]]*\]\))?\s*','',text)
@@ -69,7 +69,7 @@ func requireValue<T>(_ value: T?) throws -> T {
 @main struct Runner {
     static func main() async {
         setbuf(stdout, nil)
-        let core=CoreTests(); let rpc=RPCTests(); let security=SecurityTests(); let providers=ProviderSecurityTests(); let antigravity=AntigravityTests(); let details=QuotaDetailsTests()
+        let core=CoreTests(); let rpc=RPCTests(); let security=SecurityTests(); let providers=ProviderSecurityTests(); let antigravity=AntigravityTests(); let details=QuotaDetailsTests(); let banked=BankedResetTests()
         do {
             core.testCodexKeepsServerWindowDurationsAndMissingValuesUnknown()
             core.testPercentRejectsBooleansAndOutOfRange()
@@ -103,6 +103,11 @@ func requireValue<T>(_ value: T?) throws -> T {
             try details.metadataRedactionAndOldSnapshotDecodingRemainCompatible()
             try await details.remoteCommandTreatsShellSyntaxAsLiteralPaths()
             try await details.nativeSourceRejectsSymlinkHomesAndOtherWritableParents()
+            try banked.inventoryRetainsOnlyAuthoritativeAvailableCount()
+            banked.codexQuotaAllowlistCannotBuildResetSpendingRequests()
+            try await banked.inventoryReadUsesOneGETAndNeverSendsInventoryIDs()
+            try await banked.unavailableInventoryDoesNotFailQuotaOrAttemptAnotherAction()
+            await banked.inventoryReadHonorsCancellation()
             // Match native Swift Testing's concurrent fixture execution, even on CLT-only Macs.
             try await withThrowingTaskGroup(of: Void.self) { group in
                 for mode in ["after-ack", "before-ack", "busy"] {
@@ -133,7 +138,7 @@ func requireValue<T>(_ value: T?) throws -> T {
             }
         } catch { recordFailure("Unexpected test error: \(error)\n") }
         if failureCount > 0 { fputs("\(failureCount) failed assertions\n", stderr); exit(1) }
-        print("62 boundary cases passed (portable runner; same authored tests).")
+        print("67 boundary cases passed (portable runner; same authored tests).")
     }
 }
 ''')

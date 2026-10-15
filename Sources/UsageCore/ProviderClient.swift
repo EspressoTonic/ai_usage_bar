@@ -56,9 +56,7 @@ public struct ProviderClient {
             let windows: [QuotaWindow]
             switch provider {
             case .codex:
-                var headers: [String: String] = [:]
-                if let account { headers["ChatGPT-Account-Id"] = account }
-                json = try await request("https://chatgpt.com/backend-api/wham/usage", token: token, headers: headers)
+                json = try await request(CodexQuotaHTTPRoute.usage.request(token: token, account: account))
                 windows = QuotaParser.codex(json)
             case .claude:
                 json = try await request("https://api.anthropic.com/api/oauth/usage", token: token,
@@ -86,6 +84,9 @@ public struct ProviderClient {
             if provider == .codex {
                 reading.identity = AccountIdentity(plan: QuotaDetails.text(json["plan_type"]))
                 if let value = QuotaDetails.credits(json["credits"] as? [String: Any] ?? [:], id: "codex", label: "Codex") { reading.credits = [value] }
+                if let banked = try await CodexBankedResets.read(token: token, account: account, send: { try await request($0) }) {
+                    reading.credits = (reading.credits ?? []) + [banked]
+                }
             }
             return reading
         } catch var error as ProviderFailure {
@@ -104,6 +105,9 @@ public struct ProviderClient {
             request.httpMethod = "POST"; request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
+        return try await self.request(request)
+    }
+    private func request(_ request: URLRequest) async throws -> [String: Any] {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForResource = 12
         let (data, http) = try await BoundedHTTP.data(for: request, configuration: configuration)

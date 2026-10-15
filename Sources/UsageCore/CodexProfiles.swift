@@ -126,6 +126,13 @@ public struct CodexQuotaClient {
     }
 }
 
+/// The quota exchange cannot construct a spending, redemption, login or thread request.
+enum CodexQuotaMethod: String, CaseIterable {
+    case initialize
+    case accountRead = "account/read"
+    case rateLimitsRead = "account/rateLimits/read"
+}
+
 final class CodexQuotaExchange {
     let binding: String
     private var expected = 1
@@ -133,11 +140,11 @@ final class CodexQuotaExchange {
     private var limits: [String: Any]?
     private(set) var reading: ProviderSnapshot?
     init(binding: String) { self.binding = binding }
-    private func request(_ id: Int, _ method: String, _ params: [String: Any] = [:]) throws -> Data {
-        var value = try JSONSerialization.data(withJSONObject: ["id": id, "method": method, "params": params]); value.append(10); return value
+    private func request(_ id: Int, _ method: CodexQuotaMethod, _ params: [String: Any] = [:]) throws -> Data {
+        var value = try JSONSerialization.data(withJSONObject: ["id": id, "method": method.rawValue, "params": params]); value.append(10); return value
     }
     func dialogue() throws -> ProbeDialogue {
-        ProbeDialogue(initialInput: try request(1, "initialize", ["clientInfo": ["name": "ai_usage_bar", "version": "0.1.0"]])) { [self] line in
+        ProbeDialogue(initialInput: try request(1, .initialize, ["clientInfo": ["name": "ai_usage_bar", "version": "0.1.0"]])) { [self] line in
             try receive(line)
         }
     }
@@ -157,14 +164,14 @@ final class CodexQuotaExchange {
         switch expected {
         case 1:
             outgoing = Data("{\"method\":\"initialized\"}\n".utf8)
-            outgoing.append(try request(2, "account/read", ["refreshToken": false]))
+            outgoing.append(try request(2, .accountRead, ["refreshToken": false]))
         case 2:
             guard let value = result["account"] as? [String: Any], value["type"] as? String == "chatgpt" else {
                 throw ProviderFailure(.authentication, "Sign in to this source with a ChatGPT account using its Codex CLI.")
             }
-            account = value; outgoing = try request(3, "account/rateLimits/read")
+            account = value; outgoing = try request(3, .rateLimitsRead)
         case 3:
-            limits = result; outgoing = try request(4, "account/read", ["refreshToken": false])
+            limits = result; outgoing = try request(4, .accountRead, ["refreshToken": false])
         case 4:
             guard let second = result["account"] as? [String: Any], let account,
                   (account as NSDictionary).isEqual(to: second), let limits else {
@@ -198,7 +205,7 @@ final class CodexQuotaExchange {
             if let credit = QuotaDetails.credits(value["credits"] as? [String: Any] ?? [:], id: String(key.prefix(120)), label: label) { credits.append(credit) }
         }
         if let reset = limits["rateLimitResetCredits"] as? [String: Any],
-           let credit = QuotaDetails.credits([:], id: "reset-credits", label: "Limit resets", resetCount: reset["availableCount"]) { credits.append(credit) }
+           let credit = QuotaDetails.credits([:], id: "reset-credits", label: "Banked resets", resetCount: reset["availableCount"]) { credits.append(credit) }
         guard !windows.isEmpty else { throw ProviderFailure(.malformed, "Codex reported no supported quota windows. Missing values remain unknown.") }
         let accountID = QuotaDetails.text(limits["accountId"], maximum: 200)
         let identity = AccountIdentity(email: QuotaDetails.text(account["email"]), plan: QuotaDetails.text(account["planType"]), workspace: QuotaDetails.text(account["workspaceName"]))

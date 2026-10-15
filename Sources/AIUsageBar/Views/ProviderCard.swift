@@ -41,12 +41,19 @@ struct ProviderCard: View {
                 if let credits = reading.credits {
                     ForEach(credits) { credit in
                         VStack(alignment: .leading, spacing: 2) {
-                            if let count = credit.resetCredits { Text("Limit reset credits: \(count)") }
+                            if let count = credit.resetCredits {
+                                Text("Banked resets: \(count) · Display only")
+                                    .help("Available reset inventory. AI Usage Bar never consumes or redeems these resets.")
+                            }
                             else if credit.unlimited == true { Text(credit.label + " credits: unlimited") }
                             else if let balance = credit.balance { Text(credit.label + " credits: " + balance) }
                             else if let available = credit.hasCredits { Text(credit.label + (available ? " credits available" : " credits: none available")) }
                         }.font(.caption2).foregroundStyle(.secondary)
                     }
+                }
+                if state.id == .codex && reading.credits?.contains(where: { $0.resetCredits != nil }) != true {
+                    Text("Banked resets: unavailable · Display only").font(.caption2).foregroundStyle(.secondary)
+                        .help("The provider has not supplied an available count. Nothing is assumed to be zero.")
                 }
                 if state.id == .codex && reading.identityVerified == false {
                     Text("Workspace identity unavailable · history and alerts paused for this source.")

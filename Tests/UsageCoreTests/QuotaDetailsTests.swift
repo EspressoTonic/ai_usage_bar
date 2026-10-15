@@ -159,6 +159,7 @@ struct QuotaDetailsTests {
                 let result = try await CodexQuotaClient().fetch(profile: profile)
                 #expect(["success", "missing-identity", "group"].contains(mode))
                 #expect(result.windows.count == 1 && result.identity?.email == "person@example.test")
+                #expect(result.credits?.first(where: { $0.resetCredits != nil })?.resetCredits == 2)
                 #expect(result.identityVerified == (mode != "missing-identity"))
                 if mode == "group" {
                     let marker = root.appendingPathComponent("heartbeat")

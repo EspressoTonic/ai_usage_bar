@@ -21,6 +21,6 @@ enum DisplayFormat {
         guard let date else { return "Reset time unavailable" }
         let minutes = Int(date.timeIntervalSinceNow / 60)
         if minutes <= 0 { return "Reset due · refresh to verify" }
-        return minutes < 60 ? "Resets in \(minutes)m" : "Resets in \(minutes / 60)h \(minutes % 60)m"
+        return "Resets in " + interval(to: date)
     }
 }
