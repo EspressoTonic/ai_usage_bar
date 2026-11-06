@@ -15,7 +15,12 @@ struct Preferences: Codable {
     var contextThreshold: Double = 80
     var rpcEndpoint = "ws://127.0.0.1:4500"
     var codexProfiles: [CodexProfile]?
-    var menuQuota: MenuQuotaSelection?
+    var menuQuota: MenuQuotaSelection? // Legacy single-window pin.
+    var menuQuotaDisplay: MenuQuotaDisplay?
+    var menuQuotaMark: MenuQuotaMark?
+    var resolvedMenuDisplay: MenuQuotaDisplay {
+        menuQuotaDisplay ?? menuQuota.map(MenuQuotaDisplay.window) ?? .automatic
+    }
     var showPace: Bool?
     var keepHistory: Bool?
     var notifications: Bool?

@@ -37,9 +37,12 @@ struct QuotaPopoverView: View {
             .padding(16)
 
             if store.demo {
-                Label("Demo data", systemImage: "flask")
-                    .font(.caption).foregroundStyle(.orange)
-                    .padding(.horizontal, 16).padding(.bottom, 12)
+                HStack {
+                    Label("Demo data", systemImage: "flask").font(.caption).foregroundStyle(.orange)
+                    Spacer()
+                    MenuQuotaBadge(presentation: store.menuQuotaPresentation, mark: store.preferences.menuQuotaMark ?? .rails)
+                        .accessibilityHint("Menu bar preview")
+                }.padding(.horizontal, 16).padding(.bottom, 12)
             }
 
             if enabledProviders.isEmpty && store.profileStates.allSatisfy({ !$0.state.enabled }) {

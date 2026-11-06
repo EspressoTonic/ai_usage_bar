@@ -4,12 +4,21 @@ import UsageCore
 struct QuotaPreferencesSections: View {
     @ObservedObject var store: AppStore
     @State private var addingSource = false
-    private var selection: Binding<MenuQuotaSelection?> {
-        Binding(get: { store.preferences.menuQuota }, set: { store.preferences.menuQuota = $0; store.savePreferences() })
+    private var selection: Binding<MenuQuotaDisplay> {
+        Binding(get: { store.preferences.resolvedMenuDisplay }, set: { store.preferences.menuQuotaDisplay = $0; store.savePreferences() })
+    }
+    private var mark: Binding<MenuQuotaMark> {
+        Binding(get: { store.preferences.menuQuotaMark ?? .rails }, set: { store.preferences.menuQuotaMark = $0; store.savePreferences() })
     }
     private var selectedAvailable: Bool {
-        guard let selected = store.preferences.menuQuota else { return true }
-        return store.quotaSources.contains { source in source.id == selected.source && source.state.snapshot?.windows.contains { $0.id == selected.window } == true }
+        switch store.preferences.resolvedMenuDisplay {
+        case .automatic, .iconOnly: return true
+        case let .source(id): return store.quotaSources.contains { $0.id == id }
+        case let .window(selected):
+            return store.quotaSources.contains { source in
+                source.id == selected.source && source.state.snapshot?.windows.contains { $0.id == selected.window } == true
+            }
+        }
     }
     var body: some View {
         Section("Named Codex sources") {
@@ -30,20 +39,30 @@ struct QuotaPreferencesSections: View {
                 .font(.caption2).foregroundStyle(.secondary)
         }
         .sheet(isPresented: $addingSource) { AddCodexSourceView(store: store) }
-        Section("Quota display & history") {
-            Picker("Menu bar percentage", selection: selection) {
-                Text("Icon only").tag(Optional<MenuQuotaSelection>.none)
-                if !selectedAvailable, let selected = store.preferences.menuQuota {
-                    Text("Selected quota unavailable").tag(Optional(selected))
+        Section("Menu bar") {
+            Picker("Show", selection: selection) {
+                Text("Automatic · up to two limits").tag(MenuQuotaDisplay.automatic)
+                Text("Icon only").tag(MenuQuotaDisplay.iconOnly)
+                if !selectedAvailable {
+                    Text("Saved selection unavailable").tag(store.preferences.resolvedMenuDisplay)
                 }
-                ForEach(store.quotaSources, id: \.id) { source in
+                ForEach(store.quotaSources) { source in
+                    Text(source.title + " · first two limits").tag(MenuQuotaDisplay.source(source.id))
                     ForEach(source.state.snapshot?.windows ?? []) { window in
-                        Text(source.title + " · " + window.label).tag(Optional(MenuQuotaSelection(source: source.id, window: window.id)))
+                        Text(source.title + " · " + window.label).tag(MenuQuotaDisplay.window(MenuQuotaSelection(source: source.id, window: window.id)))
                     }
                 }
             }
-            Text("Choose one reported limit after its first successful reading. The menu bar shows a dash when that reading is stale or unavailable.")
+            Picker("Mark", selection: mark) {
+                ForEach(MenuQuotaMark.allCases) { value in Text(value.title).tag(value) }
+            }.pickerStyle(.segmented)
+            LabeledContent("Preview") {
+                MenuQuotaBadge(presentation: store.menuQuotaPresentation, mark: mark.wrappedValue).equatable()
+            }
+            Text("Automatic picks an enabled source with a current reading. Percentages are quota remaining, in provider order. A dash means unavailable.")
                 .font(.caption2).foregroundStyle(.secondary)
+        }
+        Section("Quota display & history") {
             Toggle("Show window-average pace estimates", isOn: Binding(get: { store.preferences.showPace == true }, set: { store.preferences.showPace = $0; store.savePreferences() }))
             Toggle("Keep encrypted quota history for up to 7 days", isOn: Binding(get: { store.preferences.keepHistory == true }, set: { store.setHistoryEnabled($0) })).disabled(store.demo)
             Text("At most 1,000 changed readings across all sources. Disabling clears saved history. Charts show the current account and reset window only. Antigravity and native Codex versions without workspace identity do not enter history or alerts.")

@@ -81,6 +81,35 @@ struct QuotaDetailsTests {
         state.enabled = true; state.snapshot?.windows[0].id = "different"
         #expect(selection.percentage(in: state, now: now) == nil)
     }
+    @Test func automaticMenuUsesTwoLimitsFromOneFreshSource() {
+        var stale = ProviderState(id: .claude, enabled: true)
+        stale.snapshot = reading(captured: now.addingTimeInterval(-601))
+        var current = ProviderState(id: .codex, enabled: true)
+        current.snapshot = reading(used: 28)
+        current.snapshot?.windows += [QuotaWindow(id: "week", label: "Weekly", usedPercent: 59),
+                                      QuotaWindow(id: "other", label: "Other model", usedPercent: 99)]
+        let sources = [MenuQuotaSource(id: "claude", title: "Claude", state: stale),
+                       MenuQuotaSource(id: "codex", title: "Codex", state: current)]
+        let shown = MenuQuotaPresentation.resolve(.automatic, sources: sources, now: now)
+        #expect(shown.visibleText == "C 72% / 41%")
+        #expect(shown.limits.map(\.label) == ["5 hours", "Weekly"])
+        #expect(shown.accessibilityText.contains("Weekly: 41 percent remaining"))
+        let slowPoll = MenuQuotaPresentation.resolve(.automatic, sources: sources, now: now, maximumAge: 990)
+        #expect(slowPoll.title == "Claude")
+    }
+    @Test func menuPinsNeverBorrowQuotaAndUnknownDiffersFromZero() {
+        var state = ProviderState(id: .codex, enabled: true)
+        state.snapshot = reading(used: 100)
+        state.snapshot?.windows.append(QuotaWindow(id: "week", label: "Weekly", usedPercent: 14, resetsAt: now))
+        let sources = [MenuQuotaSource(id: "codex", title: "Codex", state: state)]
+        let pinnedSource = MenuQuotaPresentation.resolve(.source("codex"), sources: sources, now: now)
+        #expect(pinnedSource.visibleText == "C 0% / —")
+        let pin = MenuQuotaSelection(source: "codex", window: "week")
+        #expect(MenuQuotaPresentation.resolve(.window(pin), sources: sources, now: now).visibleText == "C —")
+        #expect(MenuQuotaPresentation.resolve(.source("another-account"), sources: sources, now: now).visibleText == "Q —")
+        #expect(MenuQuotaPresentation.resolve(.iconOnly, sources: sources, now: now).visibleText == nil)
+        #expect(MenuQuotaPresentation.resolve(.automatic, sources: [], now: now).visibleText == nil)
+    }
     @Test func nativeParserPrefersBucketsPreservesUnknownsAndCredits() throws {
         let account: [String: Any] = ["type": "chatgpt", "email": "invented@example.test", "planType": "pro"]
         let limits: [String: Any] = ["accountId": "invented-workspace", "rateLimits": ["primary": ["usedPercent": 99]],

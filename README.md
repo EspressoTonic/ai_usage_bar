@@ -12,7 +12,7 @@ Touch Bar support is a **separate optional add-on**. The main app works on Macs 
 - Displays separate Codex, Claude, Gemini CLI and Antigravity quota windows with remaining-percentage gauges and day/hour reset countdowns.
 - Shows account/plan details, credit balances and **display-only banked resets** when reported. The app cannot consume or redeem banked resets.
 - Supports named local or SSH Codex account homes for personal/work monitoring.
-- Offers a selected quota percentage in the menu bar, optional pace estimates, encrypted quota history and low/reset notifications.
+- Shows up to two remaining quotas directly in the menu bar, with selectable Rails, Orbit or Stacks marks, optional pace estimates, encrypted history and low/reset notifications.
 - Estimates per-chat Codex context and can request native compaction when connected to the existing server that owns an idle chat.
 - Samples CPU, RAM, memory pressure and the app's resident memory, with slower background and Low Power sampling.
 
@@ -30,7 +30,7 @@ python3 script/check_secrets.py
 ./script/build_and_run.sh
 ```
 
-This builds and opens `dist/AIUsageBar.app`. It lives in the **menu bar**, with no Dock icon. Click its chart icon, then the gear button to open Settings. The Codex app's Run action uses the same build/run script.
+This builds and opens `dist/AIUsageBar.app`. It lives in the **menu bar**, with no Dock icon. Click its quota mark, then the gear button to open Settings. The Codex app's Run action uses the same build/run script.
 
 Builds are currently ad-hoc signed for local development. A notarized public binary release has not been published.
 
@@ -48,7 +48,7 @@ Demo mode uses invented accounts and quotas without provider credential reads, p
 
 1. Sign in using the provider's own CLI.
 2. Open Settings, review the selected sign-in file or executable, then enable that provider.
-3. After a successful reading, choose a source/window under **Menu bar percentage** if you want a percentage next to the icon.
+3. After a successful reading, the menu bar shows up to two limits from one source automatically. In **Settings → Menu bar**, choose a mark, pin a source or window, or select icon only.
 
 All providers start disabled. New named sources, quota history and notifications also start off. Installing Antigravity does not establish a Gemini CLI connection; they are separate sources.
 
@@ -92,7 +92,7 @@ Native source authentication, actual notification delivery, physical Touch Bar b
 
 Bug reports, provider fixtures, documentation and platform testing are welcome. Use invented fixtures and never attach credentials, real chat data or unredacted usage captures to an issue or pull request.
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, validation and integration constraints, and [architecture](docs/architecture.md) for the collector/bridge design. The current core suite contains 67 authored boundary cases; hosted CI runs the full Xcode test path.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, validation and integration constraints, and [architecture](docs/architecture.md) for the collector/bridge design. The current core suite contains 69 authored boundary cases; hosted CI runs the full Xcode test path.
 
 ## License and acknowledgments
 

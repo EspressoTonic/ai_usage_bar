@@ -143,9 +143,9 @@ public struct MenuQuotaSelection: Codable, Equatable, Hashable, Sendable {
     public var source: String
     public var window: String
     public init(source: String, window: String) { self.source = source; self.window = window }
-    public func percentage(in state: ProviderState, now: Date = Date()) -> Int? {
+    public func percentage(in state: ProviderState, now: Date = Date(), maximumAge: TimeInterval = 600) -> Int? {
         guard state.enabled, state.error == nil, let reading = state.snapshot,
-              now.timeIntervalSince(reading.capturedAt) >= 0, now.timeIntervalSince(reading.capturedAt) <= 600,
+              now.timeIntervalSince(reading.capturedAt) >= 0, now.timeIntervalSince(reading.capturedAt) <= maximumAge,
               let value = reading.windows.first(where: { $0.id == window }), value.usedPercent.isFinite,
               (0...100).contains(value.usedPercent), value.resetsAt.map({ $0 > now }) ?? true else { return nil }
         return Int(value.remainingPercent.rounded())

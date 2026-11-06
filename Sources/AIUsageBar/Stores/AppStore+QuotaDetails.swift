@@ -5,23 +5,14 @@ import UsageCore
 
 extension AppStore {
     var profileStates: [CodexProfileState] { snapshot.codexProfiles ?? [] }
-    var quotaSources: [(id: String, title: String, state: ProviderState)] {
-        snapshot.providers.filter(\.enabled).map { ($0.id.rawValue, $0.id.title, $0) } +
-        profileStates.filter { $0.state.enabled }.map { ($0.id, "Codex · " + $0.label, $0.state) }
+    var quotaSources: [MenuQuotaSource] {
+        snapshot.providers.filter(\.enabled).map { MenuQuotaSource(id: $0.id.rawValue, title: $0.id.title, state: $0) } +
+        profileStates.filter { $0.state.enabled }.map { MenuQuotaSource(id: $0.id, title: "Codex · " + $0.label, state: $0.state) }
     }
-    var menuQuotaText: String? {
-        guard let selection = preferences.menuQuota else { return nil }
-        let source = quotaSources.first { $0.id == selection.source }
-        let prefix: String
-        switch source?.state.id { case .codex: prefix = "C"; case .claude: prefix = "Cl"; case .gemini: prefix = "G"; case .antigravity: prefix = "A"; case nil: prefix = "Q" }
-        guard let state = source?.state, let percent = selection.percentage(in: state) else { return prefix + " —" }
-        return prefix + " " + String(percent) + "%"
-    }
-    var menuQuotaHelp: String {
-        guard let selection = preferences.menuQuota else { return "AI Usage Bar" }
-        guard let source = quotaSources.first(where: { $0.id == selection.source }),
-              let window = source.state.snapshot?.windows.first(where: { $0.id == selection.window }) else { return "Selected quota unavailable" }
-        return source.title + " · " + window.label + " remaining"
+    var menuQuotaPresentation: MenuQuotaPresentation {
+        // Allow the configured 15-minute poll interval without hiding an otherwise current reading.
+        let maximumAge = max(600, preferences.refreshSeconds + 90)
+        return .resolve(preferences.resolvedMenuDisplay, sources: quotaSources, maximumAge: maximumAge)
     }
     func addProfile(_ profile: CodexProfile) throws {
         guard !demo, (preferences.codexProfiles ?? []).count < 8 else { throw BridgeError("At most eight Codex sources are supported.") }

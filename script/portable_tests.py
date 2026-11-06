@@ -98,6 +98,8 @@ func requireValue<T>(_ value: T?) throws -> T {
             details.historyIsBoundedAndNeverCombinesAccountsOrResetCycles()
             details.alertsAreSilentInitiallyDeduplicateAndRequireObservedTransitions()
             details.menuQuotaNeverUsesDisabledStaleOrUnrelatedWindows()
+            details.automaticMenuUsesTwoLimitsFromOneFreshSource()
+            details.menuPinsNeverBorrowQuotaAndUnknownDiffersFromZero()
             try details.nativeParserPrefersBucketsPreservesUnknownsAndCredits()
             try details.profileConfigurationRejectsOptionsAndQuotesRemotePaths()
             try details.metadataRedactionAndOldSnapshotDecodingRemainCompatible()
@@ -138,7 +140,7 @@ func requireValue<T>(_ value: T?) throws -> T {
             }
         } catch { recordFailure("Unexpected test error: \(error)\n") }
         if failureCount > 0 { fputs("\(failureCount) failed assertions\n", stderr); exit(1) }
-        print("67 boundary cases passed (portable runner; same authored tests).")
+        print("69 boundary cases passed (portable runner; same authored tests).")
     }
 }
 ''')

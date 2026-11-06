@@ -36,7 +36,6 @@ import UserNotifications
         self.demo = demo
         if demo {
             snapshot = DemoContent.snapshot(); preferences.showPace = true; preferences.keepHistory = true
-            preferences.menuQuota = MenuQuotaSelection(source: "codex", window: "demo-0")
             if let reading = snapshot.providers.first(where: { $0.id == .codex })?.snapshot {
                 for step in 0..<6 {
                     var sample = reading; sample.capturedAt = reading.capturedAt.addingTimeInterval(Double(step - 5) * 1800)

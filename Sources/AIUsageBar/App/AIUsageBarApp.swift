@@ -40,12 +40,8 @@ private struct LaunchIcon: View {
     @Environment(\.openWindow) private var openWindow
     @State private var previewOpened = false
     var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: "chart.bar.xaxis")
-            if let text = store.menuQuotaText { Text(text).monospacedDigit() }
-        }
-            .help(store.menuQuotaHelp)
-            .accessibilityLabel(store.menuQuotaHelp + ". " + (store.menuQuotaText ?? "AI Usage Bar"))
+        MenuQuotaBadge(presentation: store.menuQuotaPresentation, mark: store.preferences.menuQuotaMark ?? .rails)
+            .equatable()
             .onAppear {
                 let arguments = ProcessInfo.processInfo.arguments
                 if !previewOpened && (arguments.contains("--preview") || arguments.contains("--preview-quota")) {
