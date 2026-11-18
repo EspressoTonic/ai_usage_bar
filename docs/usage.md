@@ -30,6 +30,14 @@ Notifications are off by default. Enabling them in Settings requests macOS permi
 
 Native protocol reference: [OpenAI app-server account and rate-limit APIs](https://learn.chatgpt.com/docs/app-server).
 
+### Model updates and old pins
+
+Quota readers accept reported model names and pools without a fixed model catalog. Codex OAuth identifies extra pools by `metered_feature` (or a reported name when absent), and native Codex uses the backend's bucket IDs, including `normalModelSlug` as a display-name fallback. The main native Codex bucket stays ahead of extra model aliases in automatic menu-bar readings. Antigravity uses reported group/bucket IDs where available, otherwise exact bounded names. Name-only identities can change when the provider renames a group or limit. Malformed siblings are skipped; ambiguous duplicate identities are omitted rather than choosing a quota by position.
+
+**Upgrade from builds before 2026-11-18:** reselect a pinned Antigravity limit or additional Codex OAuth model limit in **Settings → Menu bar**. Their old IDs depended on array positions. An old pin shows unavailable until reselected; it is never guessed to be another model. Default Codex OAuth primary/secondary IDs and native Codex IDs are unchanged. Extra OAuth model history starts a separate series rather than being joined to an ambiguous old identity.
+
+Codex context uses the chat's reported `model_context_window`, including custom capacities; unknown capacity stays unknown. New model defaults are documented by [OpenAI](https://learn.chatgpt.com/docs/models), but are not substituted for measured chat metadata. Quota refreshes make no model-generation requests and do not turn credit/spend balances into included quota.
+
 ## Chat context and native compaction
 
 Session discovery is limited to recent local Codex rollout files. Client labels are preserved from source metadata; an unknown source is not guessed to be the desktop app. The displayed context is a last-turn estimate, not an exact live working-set measurement. Lifetime tokens, context size and subscription quota remain separate. A new connection may not receive another client's token events. Local metadata does not enable compaction, and the app never resumes a chat in another server to obtain state.

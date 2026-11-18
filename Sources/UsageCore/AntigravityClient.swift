@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import Darwin
 
 public struct AntigravityClient {
@@ -78,20 +79,26 @@ public struct AntigravityClient {
               let report = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               report["status"] as? String == "SUCCESS",
               let command = report["command"] as? [String: Any], command["name"] as? String == "usage",
-              let payload = command["data"] as? [String: Any], let groups = payload["groups"] as? [[String: Any]] else {
+              let payload = command["data"] as? [String: Any], let groups = payload["groups"] as? [Any] else {
             throw ProviderFailure(.malformed, "Antigravity did not return a successful structured /usage report.")
         }
         func field(_ object: [String: Any], _ snake: String, _ camel: String) -> Any? { object[snake] ?? object[camel] }
-        func label(_ value: Any?, fallback: String) -> String {
-            guard let value = value as? String else { return fallback }
-            let clean = value.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) }.map(String.init).joined()
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            return clean.isEmpty ? fallback : String(clean.prefix(80))
+        func identity(_ value: Any?) -> String? {
+            guard let raw = value as? String, raw.utf8.count <= 256,
+                  let clean = QuotaDetails.text(raw, maximum: 256),
+                  clean == raw.trimmingCharacters(in: .whitespacesAndNewlines) else { return nil }
+            return clean
         }
         var result: [QuotaWindow] = []
-        for (groupIndex, group) in groups.prefix(32).enumerated() {
-            let groupName = label(field(group, "display_name", "displayName") ?? group["name"], fallback: "Quota")
-            for (bucketIndex, bucket) in ((group["buckets"] as? [[String: Any]]) ?? []).prefix(32).enumerated() {
+        for row in groups.prefix(32) {
+            guard let group = row as? [String: Any],
+                  let groupID = identity(field(group, "group_id", "groupId")
+                    ?? field(group, "display_name", "displayName") ?? group["name"]) else { continue }
+            let groupName = QuotaDetails.text(field(group, "display_name", "displayName") ?? group["name"], maximum: 80) ?? "Quota"
+            for row in ((group["buckets"] as? [Any]) ?? []).prefix(32) {
+                guard let bucket = row as? [String: Any],
+                      let bucketID = identity(field(bucket, "bucket_id", "bucketId")
+                        ?? field(bucket, "display_name", "displayName") ?? bucket["name"]) else { continue }
                 if let disabled = bucket["disabled"] {
                     guard let value = disabled as? NSNumber, CFGetTypeID(value) == CFBooleanGetTypeID(), !value.boolValue else { continue }
                 }
@@ -100,16 +107,22 @@ public struct AntigravityClient {
                 guard let number = (field(bucket, "remaining_fraction", "remainingFraction") ?? field(remaining, "remaining_fraction", "remainingFraction") ?? oneof) as? NSNumber,
                       CFGetTypeID(number) != CFBooleanGetTypeID(), number.doubleValue.isFinite,
                       (0...1).contains(number.doubleValue) else { continue }
-                let name = label(field(bucket, "display_name", "displayName") ?? bucket["name"], fallback: "Limit")
+                let name = QuotaDetails.text(field(bucket, "display_name", "displayName") ?? bucket["name"], maximum: 80) ?? "Limit"
                 let cadence = ((bucket["window"] as? String ?? "") + " " + name).lowercased()
                 let duration = cadence.contains("week") ? 10080 : (cadence.contains("hour") && (cadence.contains("five") || cadence.contains("5"))) ? 300 : nil
                 let rawReset = field(bucket, "reset_time", "resetTime") as? String
                 let formatter = ISO8601DateFormatter(); formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
                 let reset = rawReset.flatMap { formatter.date(from: $0) ?? ISO8601DateFormatter().date(from: $0) }
-                result.append(QuotaWindow(id: "antigravity-\(groupIndex)-\(bucketIndex)", label: groupName + " · " + name,
+                let identityData = try JSONEncoder().encode([groupID, bucketID])
+                let digest = SHA256.hash(data: identityData).prefix(12).map { String(format: "%02x", $0) }.joined()
+                result.append(QuotaWindow(id: "antigravity-" + digest, label: groupName + " · " + name,
                     usedPercent: (1 - number.doubleValue) * 100, resetsAt: reset, durationMinutes: duration))
             }
         }
+        // Stable reported IDs (or exact names) survive insertion/reordering. An
+        // ambiguous duplicate must not make a pin silently follow another pool.
+        let counts = Dictionary(grouping: result, by: \.id).mapValues(\.count)
+        result.removeAll { counts[$0.id] != 1 }
         guard !result.isEmpty else { throw ProviderFailure(.unsupported, "Antigravity returned no measured, enabled quota limits. No allowance was assumed to be full or empty.") }
         return result
     }

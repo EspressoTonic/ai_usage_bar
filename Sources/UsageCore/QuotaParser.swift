@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 public enum QuotaParser {
     private static func percent(_ raw: Any?) -> Double? {
@@ -7,8 +8,8 @@ public enum QuotaParser {
         return n.isFinite && (0...100).contains(n) ? n : nil
     }
     private static func date(_ raw: Any?) -> Date? {
-        if let seconds = raw as? Double, seconds.isFinite, seconds > 0 { return Date(timeIntervalSince1970: seconds) }
-        guard let string = raw as? String else { return nil }
+        if let seconds = QuotaDetails.number(raw), seconds > 0, seconds < 253_402_300_800 { return Date(timeIntervalSince1970: seconds) }
+        guard let string = raw as? String, string.utf8.count <= 100 else { return nil }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter.date(from: string) ?? ISO8601DateFormatter().date(from: string)
@@ -16,19 +17,34 @@ public enum QuotaParser {
     public static func codex(_ json: [String: Any]) -> [QuotaWindow] {
         var result: [QuotaWindow] = []
         func append(_ limits: [String: Any], prefix: String, title: String?) {
-            for (key, label) in [("primary_window", "Session"), ("secondary_window", "Weekly")] {
+            for (key, fallback) in [("primary_window", "Primary"), ("secondary_window", "Secondary")] {
                 guard let window = limits[key] as? [String: Any], let used = percent(window["used_percent"]) else { continue }
-                let duration = (window["limit_window_seconds"] as? Int).map { $0 / 60 }
-                let actualLabel = duration == nil ? label : windowLabel(minutes: duration!)
+                let duration = QuotaDetails.integer(window["limit_window_seconds"], range: 60...31_536_000).map { $0 / 60 }
+                let actualLabel = duration.map(windowLabel) ?? fallback
                 result.append(QuotaWindow(id: prefix + key, label: title.map { "\($0) · \(actualLabel)" } ?? actualLabel,
                                           usedPercent: used, resetsAt: date(window["reset_at"]), durationMinutes: duration))
             }
         }
         if let limits = json["rate_limit"] as? [String: Any] { append(limits, prefix: "codex-", title: nil) }
-        for (index, extra) in ((json["additional_rate_limits"] as? [[String: Any]]) ?? []).enumerated() {
-            if let limits = extra["rate_limit"] as? [String: Any] {
-                append(limits, prefix: "extra-\(index)-", title: extra["limit_name"] as? String ?? extra["name"] as? String)
-            }
+        // One malformed or future row must not erase its valid siblings. Identity is
+        // the metered feature, not array order, so new models cannot retarget a pin.
+        var extras: [String: [(title: String, limits: [String: Any])]] = [:]
+        for row in ((json["additional_rate_limits"] as? [Any]) ?? []).prefix(32) {
+            guard let extra = row as? [String: Any], let limits = extra["rate_limit"] as? [String: Any],
+                  let rawIdentity = extra["metered_feature"] as? String
+                    ?? extra["limit_name"] as? String ?? extra["name"] as? String,
+                  rawIdentity.utf8.count <= 256,
+                  let identity = QuotaDetails.text(rawIdentity, maximum: 256),
+                  identity == rawIdentity.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
+            let digest = SHA256.hash(data: Data(identity.utf8)).prefix(12).map { String(format: "%02x", $0) }.joined()
+            let title = QuotaDetails.text(extra["limit_name"]) ?? QuotaDetails.text(extra["name"])
+                ?? QuotaDetails.text(extra["metered_feature"]) ?? identity
+            extras[digest, default: []].append((title, limits))
+        }
+        for key in extras.keys.sorted() {
+            // Duplicate identities are ambiguous; do not let row order select a value.
+            guard let rows = extras[key], rows.count == 1, let extra = rows.first else { continue }
+            append(extra.limits, prefix: "codex-extra-" + key + "-", title: extra.title)
         }
         return result
     }
@@ -37,14 +53,15 @@ public enum QuotaParser {
             guard key.hasPrefix("five_hour") || key.hasPrefix("seven_day"),
                   let window = json[key] as? [String: Any], let used = percent(window["utilization"]) else { return nil }
             let label = key == "five_hour" ? "5 hours" : key == "seven_day" ? "Weekly" : key.replacingOccurrences(of: "_", with: " ").capitalized
-            return QuotaWindow(id: key, label: label, usedPercent: used, resetsAt: date(window["resets_at"]))
+            return QuotaWindow(id: key, label: label, usedPercent: used, resetsAt: date(window["resets_at"]),
+                               durationMinutes: key.hasPrefix("five_hour") ? 300 : 10080)
         }
     }
     public static func gemini(_ json: [String: Any]) -> [QuotaWindow] {
         var byModel: [String: QuotaWindow] = [:]
         for bucket in (json["buckets"] as? [[String: Any]]) ?? [] {
             guard let model = bucket["modelId"] as? String,
-                  let fraction = bucket["remainingFraction"] as? Double,
+                  let fraction = QuotaDetails.number(bucket["remainingFraction"]),
                   fraction.isFinite, (0...1).contains(fraction) else { continue }
             let window = QuotaWindow(id: model, label: model, usedPercent: (1 - fraction) * 100,
                                      resetsAt: date(bucket["resetTime"]))

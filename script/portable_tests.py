@@ -32,7 +32,7 @@ print('Original Swift Testing macros type-check successfully.', flush=True)
 
 generated = root/'.build/portable-tests'; generated.mkdir(exist_ok=True)
 sources=[]
-for name in ['CoreTests.swift','RPCTests.swift','SecurityTests.swift','ProviderSecurityTests.swift','AntigravityTests.swift','QuotaDetailsTests.swift','BankedResetTests.swift','FixtureServer.swift']:
+for name in ['CoreTests.swift','RPCTests.swift','SecurityTests.swift','ProviderSecurityTests.swift','AntigravityTests.swift','QuotaDetailsTests.swift','BankedResetTests.swift','ModelCompatibilityTests.swift','FixtureServer.swift']:
     original = root/'Tests/UsageCoreTests'/name
     text=original.read_text().replace('import Testing\n','')
     text=re.sub(r'@Test(?:\(arguments: \[[^\]]*\]\))?\s*','',text)
@@ -69,7 +69,7 @@ func requireValue<T>(_ value: T?) throws -> T {
 @main struct Runner {
     static func main() async {
         setbuf(stdout, nil)
-        let core=CoreTests(); let rpc=RPCTests(); let security=SecurityTests(); let providers=ProviderSecurityTests(); let antigravity=AntigravityTests(); let details=QuotaDetailsTests(); let banked=BankedResetTests()
+        let core=CoreTests(); let rpc=RPCTests(); let security=SecurityTests(); let providers=ProviderSecurityTests(); let antigravity=AntigravityTests(); let details=QuotaDetailsTests(); let banked=BankedResetTests(); let models=ModelCompatibilityTests()
         do {
             core.testCodexKeepsServerWindowDurationsAndMissingValuesUnknown()
             core.testPercentRejectsBooleansAndOutOfRange()
@@ -110,6 +110,14 @@ func requireValue<T>(_ value: T?) throws -> T {
             try await banked.inventoryReadUsesOneGETAndNeverSendsInventoryIDs()
             try await banked.unavailableInventoryDoesNotFailQuotaOrAttemptAnotherAction()
             await banked.inventoryReadHonorsCancellation()
+            models.modelPoolsKeepTheirIdentityAcrossInsertionAndReordering()
+            models.malformedModelRowsNeverEraseSiblingsOrInventWindowDetails()
+            try models.nativeNewModelAliasesDoNotDisplaceTheMainQuota()
+            try models.nativeBackendPrimaryBucketNameIsRespected()
+            try models.currentModelContextsUseReportedCapacityRatherThanACatalog()
+            try models.antigravityPinsSurviveNewGroupsAndBucketReordering()
+            try models.antigravityMalformedAndAmbiguousRowsCannotRetargetPins()
+            models.futureProviderModelsRemainDataDrivenAndSpendingStaysSeparate()
             // Match native Swift Testing's concurrent fixture execution, even on CLT-only Macs.
             try await withThrowingTaskGroup(of: Void.self) { group in
                 for mode in ["after-ack", "before-ack", "busy"] {
@@ -140,7 +148,7 @@ func requireValue<T>(_ value: T?) throws -> T {
             }
         } catch { recordFailure("Unexpected test error: \(error)\n") }
         if failureCount > 0 { fputs("\(failureCount) failed assertions\n", stderr); exit(1) }
-        print("69 boundary cases passed (portable runner; same authored tests).")
+        print("77 boundary cases passed (portable runner; same authored tests).")
     }
 }
 ''')

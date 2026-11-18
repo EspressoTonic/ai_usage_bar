@@ -60,6 +60,8 @@ All providers start disabled. New named sources, quota history and notifications
 | Gemini CLI | Existing Google CLI OAuth sign-in and model quota buckets | Experimental; live validation pending; account/tier dependent |
 | Claude | Existing `.credentials.json` OAuth sign-in | Experimental; live validation pending; Keychain-only sign-in unsupported |
 
+Model names and quota pools come from provider responses; Codex context uses the capacity reported by the chat. See the [model-update and pin upgrade note](docs/usage.md#model-updates-and-old-pins).
+
 **Banked resets stay display-only.** Missing counts show unavailable rather than zero. There is no Use/Redeem button, automatic redemption or reset-spending request route.
 
 Read the [usage guide](docs/usage.md) for provider paths, named accounts, pace/history/alerts, context, compaction and CLI commands. For explicit Codex CLI account switching, see the separate [codex-account-switcher](https://github.com/EspressoTonic/codex-account-switcher) project; Usage Bar monitors the selected homes.
@@ -92,7 +94,7 @@ Native source authentication, actual notification delivery, physical Touch Bar b
 
 Bug reports, provider fixtures, documentation and platform testing are welcome. Use invented fixtures and never attach credentials, real chat data or unredacted usage captures to an issue or pull request.
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, validation and integration constraints, and [architecture](docs/architecture.md) for the collector/bridge design. The current core suite contains 69 authored boundary cases; hosted CI runs the full Xcode test path.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, validation and integration constraints, and [architecture](docs/architecture.md) for the collector/bridge design. The current core suite contains 77 authored boundary cases; hosted CI runs the full Xcode test path.
 
 ## License and acknowledgments
 

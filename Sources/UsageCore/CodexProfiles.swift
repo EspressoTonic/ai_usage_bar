@@ -186,14 +186,25 @@ final class CodexQuotaExchange {
     }
     static func parse(account: [String: Any], limits: [String: Any], binding: String) throws -> ProviderSnapshot {
         var windows: [QuotaWindow] = [], credits: [QuotaCredits] = []
-        let buckets = limits["rateLimitsByLimitId"] as? [String: [String: Any]]
+        let buckets = limits["rateLimitsByLimitId"] as? [String: Any]
         let values: [(String, [String: Any])]
-        if let buckets, !buckets.isEmpty { values = buckets.keys.sorted().prefix(32).map { ($0, buckets[$0]!) } }
+        if let buckets, !buckets.isEmpty {
+            let primaryID = QuotaDetails.text((limits["rateLimits"] as? [String: Any])?["limitId"], maximum: 120) ?? "codex"
+            let keys = buckets.keys.filter { $0.utf8.count <= 120 && QuotaDetails.text($0, maximum: 120) == $0 }
+                .sorted { lhs, rhs in
+                    if (lhs == primaryID) != (rhs == primaryID) { return lhs == primaryID }
+                    return lhs < rhs
+                }
+            values = keys.prefix(32).compactMap { key in
+                (buckets[key] as? [String: Any]).map { (key, $0) }
+            }
+        }
         else if let legacy = limits["rateLimits"] as? [String: Any] { values = [("codex", legacy)] }
         else { values = [] }
         for (key, value) in values {
             guard key.utf8.count <= 120, QuotaDetails.text(key, maximum: 120) == key else { continue }
-            let label = QuotaDetails.text(value["limitName"]) ?? QuotaDetails.text(value["limitId"]) ?? QuotaDetails.text(key) ?? "Codex"
+            let label = QuotaDetails.text(value["limitName"]) ?? QuotaDetails.text(value["normalModelSlug"])
+                ?? QuotaDetails.text(value["limitId"]) ?? QuotaDetails.text(key) ?? "Codex"
             for name in ["primary", "secondary"] {
                 guard let window = value[name] as? [String: Any], let used = QuotaDetails.number(window["usedPercent"]), (0...100).contains(used) else { continue }
                 let minutes = QuotaDetails.integer(window["windowDurationMins"], range: 1...525_600)
